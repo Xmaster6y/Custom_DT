@@ -36,3 +36,9 @@ To run the checks (`pre-commit` checks):
 ```bash
 make checks
 ```
+
+## Data
+
+In order to train a model you need to download the datasets.
+
+- [BlueSunflower/chess_games_base](https://huggingface.co/datasets/BlueSunflower/chess_games_base)
