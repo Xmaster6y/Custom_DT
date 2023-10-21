@@ -3,18 +3,21 @@ Encoding functions for converting between different representations of the board
 """
 
 import re
-from typing import List
+from typing import Callable, List, Optional, Tuple
 
 import chess
 import torch
 
 
-def encode_seq(seq: str) -> List[int]:
+def encode_seq(
+    seq: str, board_to_tensor: Optional[Callable[[chess.Board], torch.Tensor]] = None
+) -> Tuple[List[int], Optional[List[torch.Tensor]], Tuple[float, float]]:
     """
     Converts a sequence of moves in algebraic notation to a sequence of move indices.
     """
     board = chess.Board()
     move_indices = []
+    board_tensors = None if board_to_tensor is None else [board_to_tensor(board)]
     for alg_move in seq.split():
         if alg_move.endswith("."):
             continue
@@ -26,7 +29,23 @@ def encode_seq(seq: str) -> List[int]:
             move_indices.append(4096 + extra_index)
         else:
             move_indices.append(move.from_square + 64 * move.to_square)
-    return move_indices
+        if board_to_tensor is not None:
+            board_tensors.append(board_to_tensor(board))
+
+    outcome = board.outcome()
+    if outcome is None:
+        end_rewards = (0.0, 0.0)
+    elif outcome.winner == chess.WHITE:
+        end_rewards = (1.0, -1.0)
+    elif outcome.winner == chess.BLACK:
+        end_rewards = (-1.0, 1.0)
+    else:
+        end_rewards = (0.5, 0.5)
+
+    if board.turn == chess.BLACK:
+        end_rewards = end_rewards[::-1]
+
+    return move_indices, board_tensors, end_rewards
 
 
 def decode_move(move_index: int) -> chess.Move:
@@ -80,7 +99,7 @@ def board_to_64x12tensor(board: chess.Board):
     for piece_index in range(1, 7):
         board_64x12tensor[:, piece_index + 5] = board_64tensor == piece_index
         board_64x12tensor[:, 6 - piece_index] = board_64tensor == -piece_index
-    return board_64x12tensor
+    return board_64x12tensor.flatten()
 
 
 if __name__ == "__main__":

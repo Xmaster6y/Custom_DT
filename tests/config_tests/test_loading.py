@@ -1,7 +1,8 @@
 """Test loading."""
 
 import torch
-from model import DecisionTransformerConfig, DecisionTransformerModel
+
+from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
 
 torch.set_default_device("cuda" if torch.cuda.is_available() else "cpu")
 

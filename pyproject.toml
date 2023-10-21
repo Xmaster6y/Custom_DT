@@ -31,6 +31,7 @@ torch = ">=2.0.0, !=2.0.1, !=2.1.0"
 transformers = { version = "^4.3", extras = ["torch"] }
 torchtyping = "^0.1.4"
 python-chess = "^1.999"
+jsonlines = "^4.0.0"
 
 [tool.poetry.group.dev]
 optional = true

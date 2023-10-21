@@ -1,0 +1,11 @@
+{
+    "configurations": [
+        {
+            "name": "Completion",
+            "type": "python",
+            "request": "launch",
+            "module": "src.eval.completion",
+            "console": "integratedTerminal"
+        }
+    ]
+}
