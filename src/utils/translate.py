@@ -3,7 +3,7 @@ Encoding functions for converting between different representations of the board
 """
 
 import re
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import chess
 import torch
@@ -31,6 +31,8 @@ def encode_seq(
             move_indices.append(move.from_square + 64 * move.to_square)
         if board_to_tensor is not None:
             board_tensors.append(board_to_tensor(board))
+    if board_to_tensor is not None:
+        board_tensors.pop()  # Remove the last board tensor, since it is not needed
 
     outcome = board.outcome()
     if outcome is None:
@@ -42,10 +44,63 @@ def encode_seq(
     else:
         end_rewards = (0.5, 0.5)
 
-    if board.turn == chess.BLACK:
-        end_rewards = end_rewards[::-1]
-
     return move_indices, board_tensors, end_rewards
+
+
+def format_inputs(
+    move_indices: List[int],
+    board_tensors: List[torch.Tensor],
+    end_rewards: Tuple[float, float],
+    act_dim: int,
+    state_dim: int,
+    device: torch.device,
+    discount: float,
+    window_size: int,
+    generator: torch.Generator,
+    return_dict=False,
+) -> Union[Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], Dict[str, torch.Tensor]]:
+    """
+    Prepares the data for the model.
+    """
+
+    seq_len = len(move_indices)
+    if window_size > seq_len:
+        raise NotImplementedError("Window size must be less than or equal to the sequence length.")
+        # TODO: Implement padding
+    window_start = torch.randint(seq_len - window_size, (1,), generator=generator).item()
+
+    action_seq = torch.nn.functional.one_hot(
+        torch.tensor(move_indices[window_start : window_start + window_size], dtype=int), num_classes=act_dim
+    )
+    actions = action_seq.reshape(1, window_size, act_dim).to(device=device, dtype=torch.float32)
+
+    state_seq = torch.stack(board_tensors[window_start : window_start + window_size])
+    states = state_seq.reshape(1, window_size, state_dim).to(device=device, dtype=torch.float32)
+
+    black_seq_len = seq_len // 2
+    white_seq_len = seq_len - black_seq_len
+    black_returns = discount ** torch.arange(black_seq_len, device=device) * end_rewards[1]
+    white_returns = discount ** torch.arange(white_seq_len, device=device) * end_rewards[0]
+
+    condition = torch.arange(seq_len, device=device) % 2 == 0
+    returns_to_go = torch.zeros(1, seq_len, 1, device=device, dtype=torch.float32)
+    returns_to_go[:, condition, :] = white_returns.reshape(1, white_seq_len, 1)
+    returns_to_go[:, ~condition, :] = black_returns.reshape(1, black_seq_len, 1)
+    returns_to_go = returns_to_go[:, window_start : window_start + window_size, :]
+
+    timesteps = torch.arange(start=window_start, end=window_start + window_size, device=device).reshape(1, window_size)
+    attention_mask = torch.ones(1, window_size, device=device, dtype=torch.float32)  # Needed for padding
+
+    if return_dict:
+        return {
+            "states": states,
+            "actions": actions,
+            "returns_to_go": returns_to_go,
+            "timesteps": timesteps,
+            "attention_mask": attention_mask,
+        }
+    else:
+        return states, actions, returns_to_go, timesteps, attention_mask
 
 
 def decode_move(move_index: int) -> chess.Move:
