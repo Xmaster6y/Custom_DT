@@ -39,6 +39,8 @@ make checks
 
 ## Data
 
-In order to train a model you need to download the datasets.
+See the [data](./data/) folder.
 
-- [BlueSunflower/chess_games_base](https://huggingface.co/datasets/BlueSunflower/chess_games_base)
+## Weights
+
+See the [weights](./weights/) folder.
