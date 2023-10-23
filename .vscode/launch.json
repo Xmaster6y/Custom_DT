@@ -6,6 +6,21 @@
             "request": "launch",
             "module": "src.eval.completion",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Translate",
+            "type": "python",
+            "request": "launch",
+            "module": "src.utils.translate",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Tests",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "args": ["tests"],
+            "console": "integratedTerminal"
         }
     ]
 }
