@@ -2,12 +2,18 @@
 Fixtures for testing utils.
 """
 
+import pathlib
+
 import pytest
 import torch
 
+import src.utils.translate as translate
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
+from src.utils.dataset import ChessDataset
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DIRECTORY = pathlib.Path(__file__).parent.absolute()
+
 
 torch.set_default_device(DEVICE)
 
@@ -35,3 +41,37 @@ def default_64x12_model():
     )
     model = DecisionTransformerModel(conf)
     yield model
+
+
+@pytest.fixture(scope="module")
+def default_64_chess_dataset():
+    generator = torch.Generator()
+    generator.manual_seed(42)
+    dataset = ChessDataset(
+        file_name=f"{DIRECTORY}/assets/test_stockfish_10.jsonl",
+        board_to_tensor=translate.board_to_64tensor,
+        act_dim=4672,
+        state_dim=64,
+        discount=0.99,
+        window_size=10,
+        generator=generator,
+        return_ids=True,
+    )
+    yield dataset
+
+
+@pytest.fixture(scope="module")
+def default_64x12_chess_dataset():
+    generator = torch.Generator()
+    generator.manual_seed(42)
+    dataset = ChessDataset(
+        file_name=f"{DIRECTORY}/assets/test_stockfish_10.jsonl",
+        board_to_tensor=translate.board_to_64x12tensor,
+        act_dim=4672,
+        state_dim=768,
+        discount=0.99,
+        window_size=10,
+        generator=generator,
+        return_ids=True,
+    )
+    yield dataset
