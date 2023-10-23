@@ -6,7 +6,6 @@ import chess
 import torch
 
 import src.utils.translate as translate
-from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -26,7 +25,7 @@ class TestInputFormat:
             simple_seq,
             translate.board_to_64tensor,
         )
-        input_dict = translate.input_format(
+        input_dict = translate.format_inputs(
             move_indices,
             board_tensors,
             end_rewards,

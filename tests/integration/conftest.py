@@ -5,7 +5,6 @@ Fixtures for testing utils.
 import pytest
 import torch
 
-import src.utils.translate as translate
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")

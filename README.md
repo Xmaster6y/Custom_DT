@@ -37,6 +37,12 @@ To run the checks (`pre-commit` checks):
 make checks
 ```
 
+To run the tests (`pytest` tests):
+
+```bash
+make tests
+```
+
 ## Data
 
 See the [data](./data/) folder.
