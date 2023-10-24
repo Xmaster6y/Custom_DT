@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 
 import src.utils.translate as translate
-from src.utils.dataset import ChessDataset, custom_collate_fn
+from src.utils.dataset import ChessDataset
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DIRECTORY = pathlib.Path(__file__).parent.absolute()
@@ -24,7 +24,6 @@ class TestChessDataset:
             dataset=default_64_chess_dataset,
             batch_size=2,
             shuffle=True,
-            collate_fn=custom_collate_fn,
         )
         for batch in dataloader:
             assert batch["actions"].shape == (2, 10, 4672)
@@ -49,7 +48,6 @@ class TestChessDataset:
             dataset=dataset,
             batch_size=1,
             shuffle=True,
-            collate_fn=custom_collate_fn,
             generator=generator,
         )
         for batch in dataloader:

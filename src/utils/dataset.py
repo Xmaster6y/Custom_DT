@@ -7,20 +7,9 @@ from typing import Callable, Optional
 import chess
 import jsonlines
 import torch
-from torch.utils.data import Dataset, default_collate
+from torch.utils.data import Dataset
 
 import src.utils.translate as translate
-
-
-def custom_collate_fn(batch: dict) -> dict:
-    """
-    Custom collate function for the chess dataset.
-    """
-    batch = default_collate(batch)
-    for key in batch:
-        if isinstance(batch[key], torch.Tensor):
-            batch[key] = batch[key].squeeze(1)
-    return batch
 
 
 class ChessDataset(Dataset):
@@ -68,6 +57,9 @@ class ChessDataset(Dataset):
             generator=self.generator,
             return_dict=True,
         )
+        for key in input_dict:
+            if isinstance(input_dict[key], torch.Tensor):
+                input_dict[key] = input_dict[key].squeeze(0)  # Remove batch dim
         if self.return_ids:
             input_dict["gameid"] = self.games[idx]["gameid"]
         return input_dict
