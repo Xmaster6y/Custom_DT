@@ -32,6 +32,8 @@ transformers = { version = "^4.3", extras = ["torch"] }
 torchtyping = "^0.1.4"
 python-chess = "^1.999"
 jsonlines = "^4.0.0"
+tensorboard = "^2.15.0"
+evaluate = "^0.4.1"
 
 [tool.poetry.group.dev]
 optional = true

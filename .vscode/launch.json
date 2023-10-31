@@ -15,6 +15,13 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Train",
+            "type": "python",
+            "request": "launch",
+            "module": "src.train.window_autoreg",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Tests",
             "type": "python",
             "request": "launch",
