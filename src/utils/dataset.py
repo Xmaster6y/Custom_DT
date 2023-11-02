@@ -23,6 +23,7 @@ class ChessDataset(Dataset):
         window_size: int,
         generator: torch.Generator,
         return_ids: bool = False,
+        eval_mode: bool = False,
     ):
         self.games = []  # Can be heavy on memory, but good enough for now
         with jsonlines.open(file_name) as reader:
@@ -36,6 +37,7 @@ class ChessDataset(Dataset):
         self.window_size = window_size
         self.generator = generator
         self.return_ids = return_ids
+        self.eval_mode = eval_mode
 
     def __len__(self):
         return len(self.games)
@@ -56,6 +58,7 @@ class ChessDataset(Dataset):
             window_size=self.window_size,
             generator=self.generator,
             return_dict=True,
+            return_labels=self.eval_mode,
         )
         for key in input_dict:
             if isinstance(input_dict[key], torch.Tensor):

@@ -15,7 +15,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Train",
+            "name": "Window Autoreg",
             "type": "python",
             "request": "launch",
             "module": "src.train.window_autoreg",
