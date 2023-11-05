@@ -51,6 +51,7 @@ eval_dataset = ChessDataset(
     window_size=10,
     generator=eval_generator,
     return_ids=True,
+    eval_mode=True,
 )
 eval_dataset_len = len(eval_dataset)
 
@@ -85,8 +86,8 @@ args = TrainingArguments(
     overwrite_output_dir=DEBUG or OVERWRITE,
     logging_strategy="steps",
     logging_steps=int(LOGGING_STEPS_RATIO * train_dataset_len / TRAIN_BATCH_SIZE),
-    prediction_loss_only=True,
-    evaluation_strategy="epoch",
+    prediction_loss_only=False,
+    evaluation_strategy="steps",
     eval_steps=int(EVAL_STEPS_RATIO * train_dataset_len / TRAIN_BATCH_SIZE),
     save_strategy="steps",
     save_steps=int(EVAL_STEPS_RATIO * train_dataset_len / TRAIN_BATCH_SIZE),
@@ -107,4 +108,5 @@ trainer = DecisionTransformerTrainer(
 if TRAINING:
     trainer.train()
 else:
-    trainer.evaluate()
+    evaluation = trainer.evaluate()
+    print(evaluation)
