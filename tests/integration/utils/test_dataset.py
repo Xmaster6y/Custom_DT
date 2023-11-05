@@ -8,13 +8,13 @@ import torch
 from torch.utils.data import DataLoader
 
 import src.utils.translate as translate
-from src.utils.dataset import ChessDataset
+from src.utils.dataset import TwoPlayersChessDataset
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DIRECTORY = pathlib.Path(__file__).parent.absolute()
 
 
-class TestChessDataset:
+class TestTwoPlayersChessDataset:
     def test_dataset_loading(self, default_64_chess_dataset):
         assert len(default_64_chess_dataset) == 10
         assert isinstance(default_64_chess_dataset[0], dict)
@@ -34,7 +34,7 @@ class TestChessDataset:
     def test_dataset_random_generator(self):
         generator = torch.Generator()
         generator.manual_seed(42)
-        dataset = ChessDataset(
+        dataset = TwoPlayersChessDataset(
             file_name=f"{DIRECTORY}/../assets/test_stockfish_10.jsonl",
             board_to_tensor=translate.board_to_64tensor,
             act_dim=4672,

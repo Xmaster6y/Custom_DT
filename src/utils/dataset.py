@@ -12,7 +12,7 @@ from torch.utils.data import Dataset
 import src.utils.translate as translate
 
 
-class ChessDataset(Dataset):
+class TwoPlayersChessDataset(Dataset):
     def __init__(
         self,
         file_name: str,
