@@ -50,7 +50,9 @@ class CompletionTest:
         self.conf = DecisionTransformerConfig(state_dim=STATE_DIM, act_dim=ACT_DIM,)
         self.model = DecisionTransformerModel(self.conf)
         self.model.to(self.device)
-        stockfish_root = list(pathlib.Path(cwd + "/stockfish-source/stockfish/").glob('*.exe'))[0]
+        stockfish_root = list(
+            pathlib.Path(f"{cwd}/stockfish-source/stockfish/").glob('*.exe')
+        )[0]
         self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_root)
 
 

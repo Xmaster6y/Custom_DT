@@ -95,19 +95,18 @@ def format_inputs(
     timesteps = torch.arange(start=window_start, end=window_start + window_size, device=device).reshape(1, window_size)
     attention_mask = torch.ones(1, window_size, device=device, dtype=torch.float32)  # Needed for padding
 
-    if return_dict:
-        input_dict = {
-            "states": states,
-            "actions": actions,
-            "returns_to_go": returns_to_go,
-            "timesteps": timesteps,
-            "attention_mask": attention_mask,
-        }
-        if return_labels:
-            input_dict["labels"] = actions
-        return input_dict
-    else:
+    if not return_dict:
         return states, actions, returns_to_go, timesteps, attention_mask
+    input_dict = {
+        "states": states,
+        "actions": actions,
+        "returns_to_go": returns_to_go,
+        "timesteps": timesteps,
+        "attention_mask": attention_mask,
+    }
+    if return_labels:
+        input_dict["labels"] = actions
+    return input_dict
 
 
 def decode_move(move_index: int) -> chess.Move:
@@ -115,8 +114,7 @@ def decode_move(move_index: int) -> chess.Move:
     Converts a move index to a chess.Move object.
     """
     if move_index < 4096:
-        from_square = move_index % 64
-        to_square = move_index // 64
+        to_square, from_square = divmod(move_index, 64)
         return chess.Move(from_square, to_square)
     else:
         extra_index = move_index - 4096
@@ -146,9 +144,7 @@ def board_to_64tensor(board: chess.Board):
     rev_rows = rows[::-1]
     ordered_fen = "".join(rev_rows)
 
-    # Convert to a 64 tensor
-    board_tensor = torch.tensor(tuple(map(piece_to_index, ordered_fen)), dtype=torch.int8)
-    return board_tensor
+    return torch.tensor(tuple(map(piece_to_index, ordered_fen)), dtype=torch.int8)
 
 
 def board_to_64x12tensor(board: chess.Board):
