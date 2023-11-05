@@ -10,12 +10,13 @@ import torch
 
 
 def encode_seq(
-    seq: str, board_to_tensor: Optional[Callable[[chess.Board], torch.Tensor]] = None
+    seq: str, board_to_tensor: Optional[Callable[[chess.Board], torch.Tensor]] = None, return_boards: bool = False
 ) -> Tuple[List[int], Optional[List[torch.Tensor]], Tuple[float, float]]:
     """
     Converts a sequence of moves in algebraic notation to a sequence of move indices.
     """
     board = chess.Board()
+    boards = [board.copy()] if return_boards else None
     move_indices = []
     board_tensors = None if board_to_tensor is None else [board_to_tensor(board)]
     for alg_move in seq.split():
@@ -31,6 +32,8 @@ def encode_seq(
             move_indices.append(move.from_square + 64 * move.to_square)
         if board_to_tensor is not None:
             board_tensors.append(board_to_tensor(board))
+        if return_boards:
+            boards.append(board.copy())
     if board_to_tensor is not None:
         board_tensors.pop()  # Remove the last board tensor, since it is not needed
 
@@ -44,7 +47,7 @@ def encode_seq(
     else:
         end_rewards = (0.5, 0.5)
 
-    return move_indices, board_tensors, end_rewards
+    return move_indices, board_tensors, end_rewards, boards
 
 
 def format_inputs(
