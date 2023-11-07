@@ -29,8 +29,7 @@ def default_64_model():
         state_dim=64,
         act_dim=4672,
     )
-    model = DecisionTransformerModel(conf)
-    yield model
+    yield DecisionTransformerModel(conf)
 
 
 @pytest.fixture(scope="module")
@@ -39,15 +38,14 @@ def default_64x12_model():
         state_dim=768,
         act_dim=4672,
     )
-    model = DecisionTransformerModel(conf)
-    yield model
+    yield DecisionTransformerModel(conf)
 
 
 @pytest.fixture(scope="module")
 def default_64_chess_dataset():
     generator = torch.Generator()
     generator.manual_seed(42)
-    dataset = ChessDataset(
+    yield ChessDataset(
         file_name=f"{DIRECTORY}/assets/test_stockfish_10.jsonl",
         board_to_tensor=translate.board_to_64tensor,
         act_dim=4672,
@@ -57,14 +55,13 @@ def default_64_chess_dataset():
         generator=generator,
         return_ids=True,
     )
-    yield dataset
 
 
 @pytest.fixture(scope="module")
 def default_64x12_chess_dataset():
     generator = torch.Generator()
     generator.manual_seed(42)
-    dataset = ChessDataset(
+    yield ChessDataset(
         file_name=f"{DIRECTORY}/assets/test_stockfish_10.jsonl",
         board_to_tensor=translate.board_to_64x12tensor,
         act_dim=4672,
@@ -74,7 +71,6 @@ def default_64x12_chess_dataset():
         generator=generator,
         return_ids=True,
     )
-    yield dataset
 
 
 @pytest.fixture(scope="module")

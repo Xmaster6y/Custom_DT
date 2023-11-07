@@ -25,11 +25,13 @@ def validate_params(parameter_name, input, expected_type, permitted_values):
         None
     """
     if not isinstance(input, expected_type):
-        raise TypeError(f"Invalid type for parameter '{parameter_name}'. Expected type: " + str(expected_type))
+        raise TypeError(
+            f"Invalid type for parameter '{parameter_name}'. Expected type: {str(expected_type)}"
+        )
     if permitted_values:
         if input not in permitted_values:
             raise ValueError(
-                f"Invalid value for parameter '{parameter_name}'. Permitted values: " + str(permitted_values)
+                f"Invalid value for parameter '{parameter_name}'. Permitted values: {str(permitted_values)}"
             )
 
 
@@ -63,14 +65,16 @@ def stockfish_eval(
     evaluations = []
     for idx, board in enumerate(boards):
         info = engine.analyse(board, chess.engine.Limit(depth=evaluation_depth))
-        if player == "white":
+        if (
+            player != "black"
+            and player == "both"
+            and idx % 2 == 0
+            or player != "black"
+            and player != "both"
+            and player == "white"
+        ):
             evaluations.append(info["score"].white().score(mate_score=10000) / 10000)
-        elif player == "black":
+        elif player != "black" and player == "both" or player == "black":
             evaluations.append(info["score"].black().score(mate_score=10000) / 10000)
-        elif player == "both":
-            if idx % 2 == 0:
-                evaluations.append(info["score"].white().score(mate_score=10000) / 10000)
-            else:
-                evaluations.append(info["score"].black().score(mate_score=10000) / 10000)
 
     return evaluations
