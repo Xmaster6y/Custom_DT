@@ -75,3 +75,10 @@ def default_64x12_chess_dataset():
         return_ids=True,
     )
     yield dataset
+
+
+@pytest.fixture(scope="module")
+def simple_boards():
+    seq = "1. d4 d5 2. c4 e6 3. e3 Nd7 4. cxd5 exd5 5. Nc3 Ngf6 6. h3 Bd6"
+    _, _, _, boards = translate.encode_seq(seq, return_boards=True)
+    return boards

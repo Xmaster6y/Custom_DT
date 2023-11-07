@@ -15,7 +15,7 @@ sys.path.append(cwd)
 import chess
 import chess.engine
 
-import translate as translate
+import src.utils.translate as translate
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
 torch.set_printoptions(sci_mode=False)
 
