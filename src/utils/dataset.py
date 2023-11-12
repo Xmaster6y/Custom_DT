@@ -27,8 +27,7 @@ class TwoPlayersChessDataset(Dataset):
     ):
         self.games = []  # Can be heavy on memory, but good enough for now
         with jsonlines.open(file_name) as reader:
-            for obj in reader:
-                self.games.append(obj)
+            self.games.extend(iter(reader))
         self.board_to_tensor = board_to_tensor
         self.act_dim = act_dim
         self.state_dim = state_dim
@@ -83,8 +82,7 @@ class OnePlayerChessDataset(Dataset):
     ):
         self.games = []  # Can be heavy on memory, but good enough for now
         with jsonlines.open(file_name) as reader:
-            for obj in reader:
-                self.games.append(obj)
+            self.games.extend(iter(reader))
         self.board_to_tensor = board_to_tensor
         self.act_dim = act_dim
         self.state_dim = state_dim
