@@ -59,6 +59,7 @@ def format_inputs(
     generator: torch.Generator,
     return_dict: bool = False,
     return_labels: bool = False,
+    one_player: bool = False,
 ) -> Union[Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], Dict[str, torch.Tensor]]:
     """
     Prepares the data for the model.
@@ -91,6 +92,14 @@ def format_inputs(
 
     timesteps = torch.arange(start=window_start, end=window_start + window_size, device=device).reshape(1, window_size)
     attention_mask = torch.ones(1, window_size, device=device, dtype=torch.float32)  # Needed for padding
+
+    if one_player:
+        color = torch.randint(2, (1,), generator=generator).item()
+        states = states[:, color::2, :]
+        actions = actions[:, color::2, :]
+        returns_to_go = returns_to_go[:, color::2, :]
+        timesteps = timesteps[:, color::2]
+        attention_mask = attention_mask[:, color::2]
 
     if return_dict:
         input_dict = {
