@@ -25,11 +25,13 @@ def validate_params(parameter_name, input, expected_type, permitted_values):
         None
     """
     if not isinstance(input, expected_type):
-        raise TypeError(f"Invalid type for parameter '{parameter_name}'. Expected type: " + str(expected_type))
+        raise TypeError(
+            f"Invalid type for parameter '{parameter_name}'. Expected type: {str(expected_type)}"
+        )
     if permitted_values:
         if input not in permitted_values:
             raise ValueError(
-                f"Invalid value for parameter '{parameter_name}'. Permitted values: " + str(permitted_values)
+                f"Invalid value for parameter '{parameter_name}'. Permitted values: {str(permitted_values)}"
             )
 
 
