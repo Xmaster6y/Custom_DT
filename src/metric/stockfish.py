@@ -65,16 +65,14 @@ def stockfish_eval(
     evaluations = []
     for idx, board in enumerate(boards):
         info = engine.analyse(board, chess.engine.Limit(depth=evaluation_depth))
-        if (
-            player != "black"
-            and player == "both"
-            and idx % 2 == 0
-            or player != "black"
-            and player != "both"
-            and player == "white"
-        ):
+        if player == "white":
             evaluations.append(info["score"].white().score(mate_score=10000) / 10000)
-        elif player != "black" and player == "both" or player == "black":
+        elif player == "black":
             evaluations.append(info["score"].black().score(mate_score=10000) / 10000)
+        elif player == "both":
+            if idx % 2 == 0:
+                evaluations.append(info["score"].white().score(mate_score=10000) / 10000)
+            else:
+                evaluations.append(info["score"].black().score(mate_score=10000) / 10000)
 
     return evaluations
