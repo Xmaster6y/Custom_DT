@@ -7,7 +7,7 @@ from transformers import TrainingArguments
 
 import src.utils.translate as translate
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
-from src.utils.dataset import ChessDataset
+from src.utils.dataset import TwoPlayersChessDataset
 from src.utils.trainer import DecisionTransformerTrainer, compute_metrics
 
 # TODO: Use argparse to set these variables
@@ -42,12 +42,11 @@ LR = 1e-5
 
 eval_generator = torch.Generator(device=DEVICE)
 eval_generator.manual_seed(SEED)
-eval_dataset = ChessDataset(
+eval_dataset = TwoPlayersChessDataset(
     file_name="data/chess_games_base/test_stockfish_5000.jsonl",
     board_to_tensor=translate.board_to_64tensor,
     act_dim=4672,
     state_dim=64,
-    discount=0.99,
     window_size=10,
     generator=eval_generator,
     return_ids=True,
@@ -61,12 +60,11 @@ if DEBUG:
     train_dataset_file = "data/chess_games_base/test_stockfish_5000.jsonl"
 else:
     train_dataset_file = "data/chess_games_base/train_stockfish_262k.jsonl"
-train_dataset = ChessDataset(
+train_dataset = TwoPlayersChessDataset(
     file_name=train_dataset_file,
     board_to_tensor=translate.board_to_64tensor,
     act_dim=4672,
     state_dim=64,
-    discount=0.99,
     window_size=10,
     generator=train_generator,
     return_ids=True,
