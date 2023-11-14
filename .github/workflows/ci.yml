@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - name: Check out repository code
+      uses: actions/checkout@v3
+    - name: Setup Python
+      uses: actions/setup-python@v3
+    - name: Run Python commands
+      run: |
+        pip install --upgrade pip
+        pip install poetry>=1.6.0
+        python -m venv .venv
+    - name: Install dependencies
+      run: |
+        poetry install --with dev
+    - name: Run checks
+      run: |
+        poetry run make checks
+    - name: Run tests
+      run: |
+        poetry run make tests
