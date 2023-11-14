@@ -90,7 +90,6 @@ def format_inputs(
     returns_to_go = returns_to_go[:, window_start : window_start + window_size, :]
 
     timesteps = torch.arange(start=window_start, end=window_start + window_size, device=device).reshape(1, window_size)
-    attention_mask = torch.ones(1, window_size, device=device, dtype=torch.float32)  # Needed for padding
 
     if one_player:
         color = torch.randint(2, (1,), generator=generator).item()
@@ -98,16 +97,14 @@ def format_inputs(
         actions = actions[:, color::2, :]
         returns_to_go = returns_to_go[:, color::2, :]
         timesteps = timesteps[:, color::2]
-        attention_mask = attention_mask[:, color::2]
 
     if not return_dict:
-        return states, actions, returns_to_go, timesteps, attention_mask
+        return states, actions, returns_to_go, timesteps
     input_dict = {
         "states": states,
         "actions": actions,
         "returns_to_go": returns_to_go,
         "timesteps": timesteps,
-        "attention_mask": attention_mask,
     }
     if return_labels:
         input_dict["labels"] = actions
