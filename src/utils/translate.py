@@ -10,18 +10,25 @@ import torch
 
 
 def encode_seq(
-    seq: str, board_to_tensor: Optional[Callable[[chess.Board], torch.Tensor]] = None
+    move_seq: Union[str, List[str], List[chess.Move]],
+    board: Optional[chess.Board] = None,
+    board_to_tensor: Optional[Callable[[chess.Board], torch.Tensor]] = None,
 ) -> Tuple[List[int], Optional[List[torch.Tensor]], Tuple[float, float]]:
     """
     Converts a sequence of moves in algebraic notation to a sequence of move indices.
     """
-    board = chess.Board()
+    if board is None:
+        board = chess.Board()
+    if isinstance(seq, str):
+        move_seq = [s for s in seq.split() if not s.endswith(".")]
     move_indices = []
     board_tensors = None if board_to_tensor is None else [board_to_tensor(board)]
-    for alg_move in seq.split():
-        if alg_move.endswith("."):
-            continue
-        move = board.push_san(alg_move)
+    for alg_move in move_seq:
+        if isinstance(alg_move, str):
+            move = board.push_san(alg_move)
+        else:
+            move = alg_move
+            board.push(move)
         promotion = move.promotion
         if promotion is not None and promotion != chess.QUEEN:  # Underpromotion
             direction = (move.to_square % 8) - (move.from_square % 8)
@@ -29,9 +36,9 @@ def encode_seq(
             move_indices.append(4096 + extra_index)
         else:
             move_indices.append(move.from_square + 64 * move.to_square)
-        if board_to_tensor is not None:
-            board_tensors.append(board_to_tensor(board))
-    if board_to_tensor is not None:
+        if board_tensors is not None:
+            board_tensors.append(board_to_tensor(board))  # type: ignore
+    if board_tensors is not None:
         board_tensors.pop()  # Remove the last board tensor, since it is not needed
 
     outcome = board.outcome()
