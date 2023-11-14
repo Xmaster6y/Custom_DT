@@ -34,7 +34,7 @@ conf = DecisionTransformerConfig(
 model = DecisionTransformerModel(conf)
 model.to(DEVICE)
 
-move_indices, board_tensors, end_rewards, _ = translate.encode_seq(sequences[3], BOARD_TO_TENSOR)
+move_indices, board_tensors, end_rewards = translate.encode_seq(sequences[3], BOARD_TO_TENSOR)
 seq_len = len(board_tensors)
 
 action_seq = torch.nn.functional.one_hot(torch.tensor(move_indices, dtype=int), num_classes=ACT_DIM)

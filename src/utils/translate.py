@@ -11,7 +11,7 @@ import torch
 
 def encode_seq(
     seq: str, board_to_tensor: Optional[Callable[[chess.Board], torch.Tensor]] = None
-) -> Tuple[List[int], Optional[List[torch.Tensor]], Tuple[float, float], chess.Board]:
+) -> Tuple[List[int], Optional[List[torch.Tensor]], Tuple[float, float]]:
     """
     Converts a sequence of moves in algebraic notation to a sequence of move indices.
     """
@@ -44,7 +44,7 @@ def encode_seq(
     else:
         end_rewards = (0.5, 0.5)
 
-    return move_indices, board_tensors, end_rewards, board
+    return move_indices, board_tensors, end_rewards
 
 
 def format_inputs(

@@ -40,7 +40,7 @@ class TwoPlayersChessDataset(Dataset):
         return len(self.games)
 
     def __getitem__(self, idx):
-        move_indices, board_tensors, end_rewards, _ = translate.encode_seq(
+        move_indices, board_tensors, end_rewards = translate.encode_seq(
             self.games[idx]["moves"],
             self.board_to_tensor,
         )
@@ -92,7 +92,7 @@ class OnePlayerChessDataset(Dataset):
         return len(self.games)
 
     def __getitem__(self, idx):
-        move_indices, board_tensors, end_rewards, _ = translate.encode_seq(
+        move_indices, board_tensors, end_rewards = translate.encode_seq(
             self.games[idx]["moves"],
             self.board_to_tensor,
         )
