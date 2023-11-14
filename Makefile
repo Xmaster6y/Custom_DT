@@ -5,7 +5,7 @@ checks:
 
 .PHONY: tests
 tests:
-	pytest tests --cov=src --cov-report=term-missing --cov-fail-under=1 -s
+	pytest tests --cov=src --cov-report=term-missing --cov-fail-under=50 -s
 
 # Training
 .PHONY: train

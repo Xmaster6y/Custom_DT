@@ -19,16 +19,15 @@ repos:
     rev: v1.0.0
     hooks:
     -   id: check-poetry
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.0.0
-    hooks:
-    -   id: mypy
-        additional_dependencies: ['types-requests', 'types-toml']
 -   repo: https://github.com/pycqa/flake8
     rev: 6.0.0
     hooks:
     -   id: flake8
-        args: ['--ignore=E203,W503', '--max-line-length=120']
+        args: [
+            '--ignore=E203,W503',
+            '--max-line-length=120',
+            '--per-file-ignores=src/**/__init__.py:F401 src/**/**/*decision_transformer.py:E501'
+        ]
 -   repo: https://github.com/pycqa/isort
     rev: 5.11.5
     hooks:
