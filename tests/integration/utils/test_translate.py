@@ -32,7 +32,6 @@ class TestInputFormat:
             act_dim=4672,
             state_dim=64,
             device=DEVICE,
-            discount=0.99,
             window_size=10,
             generator=None,
             return_dict=True,

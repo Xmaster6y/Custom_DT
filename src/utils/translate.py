@@ -54,7 +54,6 @@ def format_inputs(
     act_dim: int,
     state_dim: int,
     device: torch.device,
-    discount: float,
     window_size: int,
     generator: torch.Generator,
     return_dict: bool = False,
@@ -81,13 +80,13 @@ def format_inputs(
 
     black_seq_len = seq_len // 2
     white_seq_len = seq_len - black_seq_len
-    black_returns = discount ** torch.arange(black_seq_len, device=device) * end_rewards[1]
-    white_returns = discount ** torch.arange(white_seq_len, device=device) * end_rewards[0]
+    black_returns = torch.ones((1, black_seq_len, 1), device=device) * end_rewards[1]
+    white_returns = torch.ones((1, white_seq_len, 1), device=device) * end_rewards[0]
 
     condition = torch.arange(seq_len, device=device) % 2 == 0
     returns_to_go = torch.zeros(1, seq_len, 1, device=device, dtype=torch.float32)
-    returns_to_go[:, condition, :] = white_returns.reshape(1, white_seq_len, 1)
-    returns_to_go[:, ~condition, :] = black_returns.reshape(1, black_seq_len, 1)
+    returns_to_go[:, condition, :] = white_returns
+    returns_to_go[:, ~condition, :] = black_returns
     returns_to_go = returns_to_go[:, window_start : window_start + window_size, :]
 
     timesteps = torch.arange(start=window_start, end=window_start + window_size, device=device).reshape(1, window_size)

@@ -19,7 +19,6 @@ class TwoPlayersChessDataset(Dataset):
         board_to_tensor: Optional[Callable[[chess.Board], torch.Tensor]],
         act_dim: int,
         state_dim: int,
-        discount: float,
         window_size: int,
         generator: torch.Generator,
         return_ids: bool = False,
@@ -32,7 +31,6 @@ class TwoPlayersChessDataset(Dataset):
         self.act_dim = act_dim
         self.state_dim = state_dim
         self.device = torch.device("cpu")  # Load full dataset on cpu
-        self.discount = discount
         self.window_size = window_size
         self.generator = generator
         self.return_ids = return_ids
@@ -53,7 +51,6 @@ class TwoPlayersChessDataset(Dataset):
             act_dim=self.act_dim,
             state_dim=self.state_dim,
             device=self.device,
-            discount=self.discount,
             window_size=self.window_size,
             generator=self.generator,
             return_dict=True,
@@ -74,7 +71,6 @@ class OnePlayerChessDataset(Dataset):
         board_to_tensor: Optional[Callable[[chess.Board], torch.Tensor]],
         act_dim: int,
         state_dim: int,
-        discount: float,
         window_size: int,
         generator: torch.Generator,
         return_ids: bool = False,
@@ -87,7 +83,6 @@ class OnePlayerChessDataset(Dataset):
         self.act_dim = act_dim
         self.state_dim = state_dim
         self.device = torch.device("cpu")  # Load full dataset on cpu
-        self.discount = discount
         self.window_size = window_size
         self.generator = generator
         self.return_ids = return_ids
@@ -109,7 +104,6 @@ class OnePlayerChessDataset(Dataset):
             act_dim=self.act_dim,
             state_dim=self.state_dim,
             device=self.device,
-            discount=self.discount,
             window_size=self.window_size,
             generator=self.generator,
             return_dict=True,
