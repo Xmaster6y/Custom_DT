@@ -67,19 +67,11 @@ def stockfish_eval_board(
             Stockfish evaluation of the board position and optionally the Stockfish info object
     """
     info = engine.analyse(board, chess.engine.Limit(depth=evaluation_depth))
-    if player == "white":
+    if player == "white" or (player == "both" and board.turn == chess.BLACK):  # white has just moved if turn is black
         evaluation = info["score"].white().score(mate_score=10000) / 10000
-    elif player == "black":
-        evaluation = info["score"].black().score(mate_score=10000) / 10000
-    elif player == "both":
-        if board.turn == chess.BLACK:  # White just moved
-            evaluation = info["score"].white().score(mate_score=10000) / 10000
-        else:
-            evaluation = info["score"].black().score(mate_score=10000) / 10000
-    if return_info:
-        return evaluation, info
     else:
-        return evaluation
+        evaluation = info["score"].black().score(mate_score=10000) / 10000
+    return (evaluation, info) if return_info else evaluation
 
 
 def stockfish_eval_sequence(

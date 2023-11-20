@@ -67,12 +67,10 @@ class CompletionTest:
         else:
             platform = detect_platform
 
-        if platform == "linux":
+        if platform == "linux" or platform == "macos":
             exec_re = "stockfish*"
         elif platform == "windows":
             exec_re = "stockfish*.exe"
-        elif platform == "macos":
-            exec_re = "stockfish*"
         else:
             raise ValueError(f"Unknown platform {platform}")
         stockfish_root = list(pathlib.Path(f"{cwd}/stockfish-source/stockfish/").glob(exec_re))[0]
