@@ -1,5 +1,5 @@
 """
-Simple completion test class.
+Metric test class.
 """
 
 import os
@@ -20,7 +20,7 @@ from src.utils.dataset import OnePlayerChessDataset, TwoPlayersChessDataset
 torch.set_printoptions(sci_mode=False)
 
 
-class CompletionTest:
+class StockfishEvalTest:
     def __init__(
         self,
         file_name: str,
@@ -124,7 +124,7 @@ if __name__ == "__main__":
 
     # runs each combo of shaping rewards and # of players
     for i in range(4):
-        CT = CompletionTest(
+        CT = StockfishEvalTest(
             file_name=FILE_NAME,
             n_test_games=N,
             generator=generator,
