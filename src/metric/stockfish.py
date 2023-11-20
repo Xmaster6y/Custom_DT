@@ -18,16 +18,15 @@ def validate_params(parameter_name, input, expected_type, permitted_values):
 
         expected_type (type): Expected type of the input parameter
 
-        permitted_values (list): List of permitted values for the input parameter. If None, then no permitted values are checked.
+        permitted_values (list): List of permitted values for the input parameter.
+            If None, then no permitted values are checked.
 
     Returns:
 
         None
     """
     if not isinstance(input, expected_type):
-        raise TypeError(
-            f"Invalid type for parameter '{parameter_name}'. Expected type: {str(expected_type)}"
-        )
+        raise TypeError(f"Invalid type for parameter '{parameter_name}'. Expected type: {str(expected_type)}")
     if permitted_values:
         if input not in permitted_values:
             raise ValueError(
@@ -47,9 +46,15 @@ def stockfish_eval(
 
         engine (chess.engine.SimpleEngine): Stockfish engine that performs the evaluation
 
-        player (str): Player for which the evaluation is performed. If 'both' then the board evaluations will alternate perspectives, with the white perspective being first. - Options: ['white', 'black', 'both'] - Default: 'white'
+        player (str): Player for which the evaluation is performed. If 'both' then the board evaluations will
+            alternate perspectives, with the white perspective being first.
+            - Options: ['white', 'black', 'both']
+            - Default: 'white'
 
-        evaluation_depth (int): Depth of search for Stockfish engine. Increasing the depth of the search increases runtime. - Options: [4...12] - Default: 8
+        evaluation_depth (int): Depth of search for Stockfish engine. Increasing the depth of the search increases
+            runtime.
+            - Options: [4...12]
+            - Default: 8
 
     Returns:
 

@@ -10,19 +10,18 @@ import chess
 import chess.engine
 import torch
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+import src.metric.stockfish as stockfish
 
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.set_default_device(DEVICE)
 
 cwd = os.getcwd()
 sys.path.append(cwd)
-import src.metric.stockfish as stockfish
+
 
 class TestStockfishEval:
     def test_simple_boards(self, simple_boards):
-        stockfish_root = list(
-            pathlib.Path(f"{cwd}/stockfish-source/stockfish/").glob("*.exe")
-        )[0]
+        stockfish_root = list(pathlib.Path(f"{cwd}/stockfish-source/stockfish/").glob("*.exe"))[0]
         engine = chess.engine.SimpleEngine.popen_uci(stockfish_root)
         for player in ["white", "black", "both"]:
             for evaluation_depth in range(4, 13):
