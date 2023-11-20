@@ -114,6 +114,7 @@ def format_inputs(
         engine = chess.engine.SimpleEngine.popen_uci(stockfish_root)
         eval_list = [0] + stockfish_eval_sequence(sequence, engine, player="both", evaluation_depth=8)[:-1]
         evaluations = torch.tensor([eval_list])[:, :, None]
+        engine.quit()
 
         white_returns = white_returns + evaluations[:, ::2, :]
         black_returns = black_returns + evaluations[:, 1::2, :]
