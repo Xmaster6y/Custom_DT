@@ -29,6 +29,7 @@ class TestInputFormat:
             move_indices,
             board_tensors,
             end_rewards,
+            sequence=simple_seq,
             act_dim=4672,
             state_dim=64,
             device=DEVICE,
