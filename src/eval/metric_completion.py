@@ -15,9 +15,6 @@ import torch
 import src.utils.translate as translate
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
 
-cwd = os.getcwd()
-sys.path.append(cwd)
-
 torch.set_printoptions(sci_mode=False)
 
 
@@ -33,6 +30,7 @@ class CompletionTest:
         shaping_eval_depth: int = 8,
         single_player: bool = True,
         device: str = "cpu",
+        detect_platform: str = "auto",
     ):
         self.file_name = file_name
         self.n_test_games = n_test_games
@@ -54,7 +52,30 @@ class CompletionTest:
         )
         self.model = DecisionTransformerModel(self.conf)
         self.model.to(self.device)
-        stockfish_root = list(pathlib.Path(f"{cwd}/stockfish-source/stockfish/").glob("*.exe"))[0]
+
+        cwd = os.getcwd()
+        sys.path.append(cwd)
+        if detect_platform == "auto":
+            if sys.platform in ["linux"]:
+                platform = "linux"
+            elif sys.platform in ["win32", "cygwin"]:
+                platform = "windows"
+            elif sys.platform in ["darwin"]:
+                platform = "macos"
+            else:
+                raise ValueError(f"Unknown platform {sys.platform}")
+        else:
+            platform = detect_platform
+
+        if platform == "linux":
+            exec_re = "stockfish*"
+        elif platform == "windows":
+            exec_re = "stockfish*.exe"
+        elif platform == "macos":
+            exec_re = "stockfish*"
+        else:
+            raise ValueError(f"Unknown platform {platform}")
+        stockfish_root = list(pathlib.Path(f"{cwd}/stockfish-source/stockfish/").glob(exec_re))[0]
         self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_root)
 
     def prepare_data(self):

@@ -2,8 +2,11 @@
 Fixtures for testing utils.
 """
 
+import os
 import pathlib
+import sys
 
+import chess
 import pytest
 import torch
 
@@ -13,6 +16,7 @@ from src.utils.dataset import OnePlayerChessDataset, TwoPlayersChessDataset
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DIRECTORY = pathlib.Path(__file__).parent.absolute()
+DETECT_PLATFORM = "auto"
 
 
 torch.set_default_device(DEVICE)
@@ -101,8 +105,32 @@ def op_64x12_chess_dataset():
     )
 
 
-@pytest.fixture(scope="module")
-def simple_boards():
-    seq = "1. d4 d5 2. c4 e6 3. e3 Nd7 4. cxd5 exd5 5. Nc3 Ngf6 6. h3 Bd6"
-    _, _, _, boards = translate.encode_seq(seq, return_boards=True)
-    return boards
+@pytest.fixture(scope="session")
+def stockfish_engine():
+    cwd = os.getcwd()
+    sys.path.append(cwd)
+    if DETECT_PLATFORM == "auto":
+        if sys.platform in ["linux"]:
+            platform = "linux"
+        elif sys.platform in ["win32", "cygwin"]:
+            platform = "windows"
+        elif sys.platform in ["darwin"]:
+            platform = "macos"
+        else:
+            raise ValueError(f"Unknown platform {sys.platform}")
+    else:
+        platform = DETECT_PLATFORM
+
+    if platform == "linux":
+        exec_re = "stockfish*"
+    elif platform == "windows":
+        exec_re = "stockfish*.exe"
+    elif platform == "macos":
+        exec_re = "stockfish*"
+    else:
+        raise ValueError(f"Unknown platform {platform}")
+
+    stockfish_root = list(pathlib.Path(f"{cwd}/stockfish-source/stockfish/").glob(exec_re))[0]
+    engine = chess.engine.SimpleEngine.popen_uci(stockfish_root)
+    yield engine
+    engine.close()
