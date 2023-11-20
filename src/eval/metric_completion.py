@@ -67,7 +67,7 @@ class CompletionTest:
         else:
             platform = detect_platform
 
-        if platform == "linux" or platform == "macos":
+        if platform in ["linux", "macos"]:
             exec_re = "stockfish*"
         elif platform == "windows":
             exec_re = "stockfish*.exe"

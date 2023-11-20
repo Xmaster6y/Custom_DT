@@ -121,7 +121,7 @@ def stockfish_engine():
     else:
         platform = DETECT_PLATFORM
 
-    if platform == "linux" or platform == "macos":
+    if platform in ["linux", "macos"]:
         exec_re = "stockfish*"
     elif platform == "windows":
         exec_re = "stockfish*.exe"
