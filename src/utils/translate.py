@@ -8,9 +8,12 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 import chess
 import torch
 
+from src.metric.stockfish import StockfishMetric
+
 
 def encode_seq(
-    seq: str, board_to_tensor: Optional[Callable[[chess.Board], torch.Tensor]] = None
+    seq: str,
+    board_to_tensor: Optional[Callable[[chess.Board], torch.Tensor]] = None,
 ) -> Tuple[List[int], Optional[List[torch.Tensor]], Tuple[float, float]]:
     """
     Converts a sequence of moves in algebraic notation to a sequence of move indices.
@@ -51,6 +54,7 @@ def format_inputs(
     move_indices: List[int],
     board_tensors: List[torch.Tensor],
     end_rewards: Tuple[float, float],
+    sequence: str,
     act_dim: int,
     state_dim: int,
     device: torch.device,
@@ -59,6 +63,8 @@ def format_inputs(
     return_dict: bool = False,
     return_labels: bool = False,
     one_player: bool = False,
+    shaping_rewards: bool = False,
+    stockfish_metric: Optional[StockfishMetric] = None,
 ) -> Union[Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], Dict[str, torch.Tensor]]:
     """
     Prepares the data for the model.
@@ -82,6 +88,17 @@ def format_inputs(
     white_seq_len = seq_len - black_seq_len
     black_returns = torch.ones((1, black_seq_len, 1), device=device) * end_rewards[1]
     white_returns = torch.ones((1, white_seq_len, 1), device=device) * end_rewards[0]
+
+    if shaping_rewards:
+        if stockfish_metric is None:
+            raise ValueError("Stockfish metric must be provided if shaping rewards are enabled.")
+        eval_list = [0] + stockfish_metric.eval_sequence(sequence, player="both", evaluation_depth=8)[:-1]
+        evaluations = torch.tensor([eval_list])[:, :, None]
+
+        white_returns = white_returns + evaluations[:, ::2, :]
+        black_returns = black_returns + evaluations[:, 1::2, :]
+        # evaluations are added instead of subtracted, because evaluations are from the
+        # perspective of the player who has just moved. Needs to be perspective of player who is about to move.
 
     condition = torch.arange(seq_len, device=device) % 2 == 0
     returns_to_go = torch.zeros(1, seq_len, 1, device=device, dtype=torch.float32)

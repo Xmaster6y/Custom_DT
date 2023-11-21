@@ -23,6 +23,7 @@ class TwoPlayersChessDataset(Dataset):
         generator: torch.Generator,
         return_ids: bool = False,
         eval_mode: bool = False,
+        shaping_rewards: bool = False,
     ):
         self.games = []  # Can be heavy on memory, but good enough for now
         with jsonlines.open(file_name) as reader:
@@ -35,6 +36,7 @@ class TwoPlayersChessDataset(Dataset):
         self.generator = generator
         self.return_ids = return_ids
         self.eval_mode = eval_mode
+        self.shaping_rewards = shaping_rewards
 
     def __len__(self):
         return len(self.games)
@@ -48,6 +50,7 @@ class TwoPlayersChessDataset(Dataset):
             move_indices,
             board_tensors,
             end_rewards,
+            sequence=self.games[idx]["moves"],
             act_dim=self.act_dim,
             state_dim=self.state_dim,
             device=self.device,
@@ -55,6 +58,7 @@ class TwoPlayersChessDataset(Dataset):
             generator=self.generator,
             return_dict=True,
             return_labels=self.eval_mode,
+            shaping_rewards=self.shaping_rewards,
         )
         for key in input_dict:
             if isinstance(input_dict[key], torch.Tensor):
@@ -75,6 +79,7 @@ class OnePlayerChessDataset(Dataset):
         generator: torch.Generator,
         return_ids: bool = False,
         eval_mode: bool = False,
+        shaping_rewards: bool = False,
     ):
         self.games = []  # Can be heavy on memory, but good enough for now
         with jsonlines.open(file_name) as reader:
@@ -87,6 +92,7 @@ class OnePlayerChessDataset(Dataset):
         self.generator = generator
         self.return_ids = return_ids
         self.eval_mode = eval_mode
+        self.shaping_rewards = shaping_rewards
 
     def __len__(self):
         return len(self.games)
@@ -96,11 +102,11 @@ class OnePlayerChessDataset(Dataset):
             self.games[idx]["moves"],
             self.board_to_tensor,
         )
-
         input_dict = translate.format_inputs(
             move_indices,
             board_tensors,
             end_rewards,
+            sequence=self.games[idx]["moves"],
             act_dim=self.act_dim,
             state_dim=self.state_dim,
             device=self.device,
@@ -109,6 +115,7 @@ class OnePlayerChessDataset(Dataset):
             return_dict=True,
             return_labels=self.eval_mode,
             one_player=True,
+            shaping_rewards=self.shaping_rewards,
         )
         for key in input_dict:
             if isinstance(input_dict[key], torch.Tensor):

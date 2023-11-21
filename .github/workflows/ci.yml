@@ -8,6 +8,7 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    environment: ci
     timeout-minutes: 10
     steps:
     - name: Check out repository code
@@ -27,6 +28,13 @@ jobs:
     - name: Run checks
       run: |
         poetry run make checks
+    - name: Download stockfish
+      env:
+        STOCKFISH_GDRIVE_ID: ${{ secrets.STOCKFISH_GDRIVE_ID }}
+      run: |
+        mkdir -p stockfish-source/stockfish
+        curl -L -o "stockfish-source/stockfish/stockfish_src" "https://drive.google.com/uc?export=download&id=${STOCKFISH_GDRIVE_ID}"
+        chmod +x stockfish-source/stockfish/stockfish_src
     - name: Run tests
       run: |
         poetry run make tests
