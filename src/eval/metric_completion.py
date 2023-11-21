@@ -2,18 +2,10 @@
 Metric test class.
 """
 
-import os
-import pathlib
-import sys
-
-import chess
-import chess.engine
 import torch
 
-cwd = os.getcwd()
-sys.path.append(cwd)
-
 import src.utils.translate as translate
+from src.metric.stockfish import StockfishMetric
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
 from src.utils.dataset import OnePlayerChessDataset, TwoPlayersChessDataset
 
@@ -32,7 +24,7 @@ class StockfishEvalTest:
         shaping_rewards: bool = False,
         one_player: bool = False,
         device: str = "cpu",
-        detect_platform: str = "auto",
+        default_platform: str = "auto",
     ):
         self.file_name = file_name
         self.n_test_games = n_test_games
@@ -55,26 +47,7 @@ class StockfishEvalTest:
         self.model = DecisionTransformerModel(self.conf)
         self.model.to(self.device)
 
-        if detect_platform == "auto":
-            if sys.platform in ["linux"]:
-                platform = "linux"
-            elif sys.platform in ["win32", "cygwin"]:
-                platform = "windows"
-            elif sys.platform in ["darwin"]:
-                platform = "macos"
-            else:
-                raise ValueError(f"Unknown platform {sys.platform}")
-        else:
-            platform = detect_platform
-
-        if platform in ["linux", "macos"]:
-            exec_re = "stockfish*"
-        elif platform == "windows":
-            exec_re = "stockfish*.exe"
-        else:
-            raise ValueError(f"Unknown platform {platform}")
-        stockfish_root = list(pathlib.Path(f"{cwd}/stockfish-source/stockfish/").glob(exec_re))[0]
-        self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_root)
+        self.stockfish_metric = StockfishMetric(default_platform=default_platform)
 
     def run_test(self):
         data_config = {
@@ -101,7 +74,7 @@ class StockfishEvalTest:
             print("-" * 40)
 
         with torch.no_grad():
-            state_preds, action_preds, return_preds = self.model(
+            _, _, _ = self.model(
                 states=game["states"].unsqueeze(0),
                 actions=game["actions"].unsqueeze(0),
                 returns_to_go=game["returns_to_go"].unsqueeze(0),

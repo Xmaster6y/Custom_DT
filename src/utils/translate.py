@@ -2,16 +2,13 @@
 Encoding functions for converting between different representations of the board.
 """
 
-import os
-import pathlib
 import re
-import sys
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import chess
 import torch
 
-from src.metric.stockfish import stockfish_eval_sequence
+from src.metric.stockfish import StockfishMetric
 
 
 def encode_seq(
@@ -67,6 +64,7 @@ def format_inputs(
     return_labels: bool = False,
     one_player: bool = False,
     shaping_rewards: bool = False,
+    stockfish_metric: Optional[StockfishMetric] = None,
 ) -> Union[Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], Dict[str, torch.Tensor]]:
     """
     Prepares the data for the model.
@@ -92,29 +90,10 @@ def format_inputs(
     white_returns = torch.ones((1, white_seq_len, 1), device=device) * end_rewards[0]
 
     if shaping_rewards:
-        cwd = os.getcwd()
-        sys.path.append(cwd)
-        if sys.platform in ["linux"]:
-            platform = "linux"
-        elif sys.platform in ["win32", "cygwin"]:
-            platform = "windows"
-        elif sys.platform in ["darwin"]:
-            platform = "macos"
-        else:
-            raise ValueError(f"Unknown platform {sys.platform}")
-
-        if platform in ["linux", "macos"]:
-            exec_re = "stockfish*"
-        elif platform == "windows":
-            exec_re = "stockfish*.exe"
-        else:
-            raise ValueError(f"Unknown platform {platform}")
-
-        stockfish_root = list(pathlib.Path(f"{cwd}/stockfish-source/stockfish/").glob(exec_re))[0]
-        engine = chess.engine.SimpleEngine.popen_uci(stockfish_root)
-        eval_list = [0] + stockfish_eval_sequence(sequence, engine, player="both", evaluation_depth=8)[:-1]
+        if stockfish_metric is None:
+            raise ValueError("Stockfish metric must be provided if shaping rewards are enabled.")
+        eval_list = [0] + stockfish_metric.eval_sequence(sequence, player="both", evaluation_depth=8)[:-1]
         evaluations = torch.tensor([eval_list])[:, :, None]
-        engine.quit()
 
         white_returns = white_returns + evaluations[:, ::2, :]
         black_returns = black_returns + evaluations[:, 1::2, :]

@@ -4,17 +4,15 @@ Test translate.
 
 import torch
 
-import src.metric.stockfish as stockfish
-
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.set_default_device(DEVICE)
 
 
 class TestStockfishEval:
-    def test_simple_boards(self, simple_seq, stockfish_engine):
+    def test_simple_boards(self, simple_seq, stockfish_metric):
         for player in ["white", "black", "both"]:
             for evaluation_depth in range(4, 13):
-                evaluations = stockfish.stockfish_eval_sequence(simple_seq, stockfish_engine, player, evaluation_depth)
+                evaluations = stockfish_metric.eval_sequence(simple_seq, player, evaluation_depth)
                 assert len(evaluations) == 12
                 assert isinstance(evaluations[0], float)
                 if player in ["white", "both"]:

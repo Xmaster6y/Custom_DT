@@ -2,15 +2,13 @@
 Fixtures for testing utils.
 """
 
-import os
 import pathlib
-import sys
 
-import chess
 import pytest
 import torch
 
 import src.utils.translate as translate
+from src.metric.stockfish import StockfishMetric
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
 from src.utils.dataset import OnePlayerChessDataset, TwoPlayersChessDataset
 
@@ -106,29 +104,7 @@ def op_64x12_chess_dataset():
 
 
 @pytest.fixture(scope="session")
-def stockfish_engine():
-    cwd = os.getcwd()
-    sys.path.append(cwd)
-    if DETECT_PLATFORM == "auto":
-        if sys.platform in ["linux"]:
-            platform = "linux"
-        elif sys.platform in ["win32", "cygwin"]:
-            platform = "windows"
-        elif sys.platform in ["darwin"]:
-            platform = "macos"
-        else:
-            raise ValueError(f"Unknown platform {sys.platform}")
-    else:
-        platform = DETECT_PLATFORM
-
-    if platform in ["linux", "macos"]:
-        exec_re = "stockfish*"
-    elif platform == "windows":
-        exec_re = "stockfish*.exe"
-    else:
-        raise ValueError(f"Unknown platform {platform}")
-
-    stockfish_root = list(pathlib.Path(f"{cwd}/stockfish-source/stockfish/").glob(exec_re))[0]
-    engine = chess.engine.SimpleEngine.popen_uci(stockfish_root)
-    yield engine
-    engine.close()
+def stockfish_metric():
+    metric = StockfishMetric(default_platform=DETECT_PLATFORM)
+    yield metric
+    del metric
