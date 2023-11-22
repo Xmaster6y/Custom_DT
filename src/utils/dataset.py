@@ -10,6 +10,7 @@ import torch
 from torch.utils.data import Dataset
 
 import src.utils.translate as translate
+from src.metric.stockfish import StockfishMetric
 
 
 class TwoPlayersChessDataset(Dataset):
@@ -24,6 +25,7 @@ class TwoPlayersChessDataset(Dataset):
         return_ids: bool = False,
         eval_mode: bool = False,
         shaping_rewards: bool = False,
+        stockfish_metric: Optional[StockfishMetric] = None,
     ):
         self.games = []  # Can be heavy on memory, but good enough for now
         with jsonlines.open(file_name) as reader:
@@ -37,6 +39,7 @@ class TwoPlayersChessDataset(Dataset):
         self.return_ids = return_ids
         self.eval_mode = eval_mode
         self.shaping_rewards = shaping_rewards
+        self.stockfish_metric = stockfish_metric
 
     def __len__(self):
         return len(self.games)
@@ -59,6 +62,7 @@ class TwoPlayersChessDataset(Dataset):
             return_dict=True,
             return_labels=self.eval_mode,
             shaping_rewards=self.shaping_rewards,
+            stockfish_metric=self.stockfish_metric,
         )
         for key in input_dict:
             if isinstance(input_dict[key], torch.Tensor):
@@ -80,6 +84,7 @@ class OnePlayerChessDataset(Dataset):
         return_ids: bool = False,
         eval_mode: bool = False,
         shaping_rewards: bool = False,
+        stockfish_metric: Optional[StockfishMetric] = None,
     ):
         self.games = []  # Can be heavy on memory, but good enough for now
         with jsonlines.open(file_name) as reader:
@@ -93,6 +98,7 @@ class OnePlayerChessDataset(Dataset):
         self.return_ids = return_ids
         self.eval_mode = eval_mode
         self.shaping_rewards = shaping_rewards
+        self.stockfish_metric = stockfish_metric
 
     def __len__(self):
         return len(self.games)
@@ -116,6 +122,7 @@ class OnePlayerChessDataset(Dataset):
             return_labels=self.eval_mode,
             one_player=True,
             shaping_rewards=self.shaping_rewards,
+            stockfish_metric=self.stockfish_metric,
         )
         for key in input_dict:
             if isinstance(input_dict[key], torch.Tensor):
