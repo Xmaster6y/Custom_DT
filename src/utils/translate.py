@@ -8,15 +8,17 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 import chess
 import torch
 
+from src.metric.stockfish import StockfishMetric
+
 
 def encode_seq(
-    seq: str, board_to_tensor: Optional[Callable[[chess.Board], torch.Tensor]] = None, return_boards: bool = False
+    seq: str,
+    board_to_tensor: Optional[Callable[[chess.Board], torch.Tensor]] = None,
 ) -> Tuple[List[int], Optional[List[torch.Tensor]], Tuple[float, float]]:
     """
     Converts a sequence of moves in algebraic notation to a sequence of move indices.
     """
     board = chess.Board()
-    boards = [board.copy()] if return_boards else None
     move_indices = []
     board_tensors = None if board_to_tensor is None else [board_to_tensor(board)]
     for alg_move in seq.split():
@@ -32,8 +34,6 @@ def encode_seq(
             move_indices.append(move.from_square + 64 * move.to_square)
         if board_to_tensor is not None:
             board_tensors.append(board_to_tensor(board))
-        if return_boards:
-            boards.append(board.copy())
     if board_to_tensor is not None:
         board_tensors.pop()  # Remove the last board tensor, since it is not needed
 
@@ -47,21 +47,24 @@ def encode_seq(
     else:
         end_rewards = (0.5, 0.5)
 
-    return move_indices, board_tensors, end_rewards, boards
+    return move_indices, board_tensors, end_rewards
 
 
 def format_inputs(
     move_indices: List[int],
     board_tensors: List[torch.Tensor],
     end_rewards: Tuple[float, float],
+    sequence: str,
     act_dim: int,
     state_dim: int,
     device: torch.device,
-    discount: float,
     window_size: int,
     generator: torch.Generator,
     return_dict: bool = False,
     return_labels: bool = False,
+    one_player: bool = False,
+    shaping_rewards: bool = False,
+    stockfish_metric: Optional[StockfishMetric] = None,
 ) -> Union[Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], Dict[str, torch.Tensor]]:
     """
     Prepares the data for the model.
@@ -83,31 +86,46 @@ def format_inputs(
 
     black_seq_len = seq_len // 2
     white_seq_len = seq_len - black_seq_len
-    black_returns = discount ** torch.arange(black_seq_len, device=device) * end_rewards[1]
-    white_returns = discount ** torch.arange(white_seq_len, device=device) * end_rewards[0]
+    black_returns = torch.ones((1, black_seq_len, 1), device=device) * end_rewards[1]
+    white_returns = torch.ones((1, white_seq_len, 1), device=device) * end_rewards[0]
+
+    if shaping_rewards:
+        if stockfish_metric is None:
+            raise ValueError("Stockfish metric must be provided if shaping rewards are enabled.")
+        eval_list = [0] + stockfish_metric.eval_sequence(sequence, player="both", evaluation_depth=8)[:-1]
+        evaluations = torch.tensor([eval_list])[:, :, None]
+
+        white_returns = white_returns + evaluations[:, ::2, :]
+        black_returns = black_returns + evaluations[:, 1::2, :]
+        # evaluations are added instead of subtracted, because evaluations are from the
+        # perspective of the player who has just moved. Needs to be perspective of player who is about to move.
 
     condition = torch.arange(seq_len, device=device) % 2 == 0
     returns_to_go = torch.zeros(1, seq_len, 1, device=device, dtype=torch.float32)
-    returns_to_go[:, condition, :] = white_returns.reshape(1, white_seq_len, 1)
-    returns_to_go[:, ~condition, :] = black_returns.reshape(1, black_seq_len, 1)
+    returns_to_go[:, condition, :] = white_returns
+    returns_to_go[:, ~condition, :] = black_returns
     returns_to_go = returns_to_go[:, window_start : window_start + window_size, :]
 
     timesteps = torch.arange(start=window_start, end=window_start + window_size, device=device).reshape(1, window_size)
-    attention_mask = torch.ones(1, window_size, device=device, dtype=torch.float32)  # Needed for padding
 
-    if return_dict:
-        input_dict = {
-            "states": states,
-            "actions": actions,
-            "returns_to_go": returns_to_go,
-            "timesteps": timesteps,
-            "attention_mask": attention_mask,
-        }
-        if return_labels:
-            input_dict["labels"] = actions
-        return input_dict
-    else:
-        return states, actions, returns_to_go, timesteps, attention_mask
+    if one_player:
+        color = torch.randint(2, (1,), generator=generator).item()
+        states = states[:, color::2, :]
+        actions = actions[:, color::2, :]
+        returns_to_go = returns_to_go[:, color::2, :]
+        timesteps = timesteps[:, color::2]
+
+    if not return_dict:
+        return states, actions, returns_to_go, timesteps
+    input_dict = {
+        "states": states,
+        "actions": actions,
+        "returns_to_go": returns_to_go,
+        "timesteps": timesteps,
+    }
+    if return_labels:
+        input_dict["labels"] = actions
+    return input_dict
 
 
 def decode_move(move_index: int) -> chess.Move:
@@ -115,8 +133,7 @@ def decode_move(move_index: int) -> chess.Move:
     Converts a move index to a chess.Move object.
     """
     if move_index < 4096:
-        from_square = move_index % 64
-        to_square = move_index // 64
+        to_square, from_square = divmod(move_index, 64)
         return chess.Move(from_square, to_square)
     else:
         extra_index = move_index - 4096
@@ -146,9 +163,7 @@ def board_to_64tensor(board: chess.Board):
     rev_rows = rows[::-1]
     ordered_fen = "".join(rev_rows)
 
-    # Convert to a 64 tensor
-    board_tensor = torch.tensor(tuple(map(piece_to_index, ordered_fen)), dtype=torch.int8)
-    return board_tensor
+    return torch.tensor(tuple(map(piece_to_index, ordered_fen)), dtype=torch.int8)
 
 
 def board_to_64x12tensor(board: chess.Board):

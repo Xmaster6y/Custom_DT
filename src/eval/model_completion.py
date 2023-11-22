@@ -5,10 +5,6 @@ Simple completion test.
 import chess
 import jsonlines
 import torch
-import sys
-import os
-cwd = os.getcwd()
-sys.path.append(cwd)
 
 import src.utils.translate as translate
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
