@@ -1,10 +1,17 @@
 {
     "configurations": [
         {
-            "name": "Completion",
+            "name": "Model Completion",
             "type": "python",
             "request": "launch",
-            "module": "src.eval.completion",
+            "module": "src.eval.model_completion",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Metric Completion",
+            "type": "python",
+            "request": "launch",
+            "module": "src.eval.metric_completion",
             "console": "integratedTerminal"
         },
         {
