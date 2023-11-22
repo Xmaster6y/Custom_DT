@@ -179,6 +179,39 @@ def board_to_64x12tensor(board: chess.Board):
     return board_64x12tensor.flatten()
 
 
+def board_to_68tensor(board: chess.Board):
+    """
+    Converts a chess.Board object to a 68 tensor.
+    64 squares + 4 castling rights
+    """
+    fen_rep = board.fen().split(" ")[0]
+    fen_rep = re.sub(r"(\d)", lambda m: "0" * int(m.group(1)), fen_rep)
+    rows = fen_rep.split("/")
+    rev_rows = rows[::-1]
+    ordered_fen = "".join(rev_rows)
+    ordinal_board = list(map(piece_to_index, ordered_fen))
+    ordinal_board.append(board.has_kingside_castling_rights(chess.WHITE))
+    ordinal_board.append(board.has_queenside_castling_rights(chess.WHITE))
+    ordinal_board.append(board.has_kingside_castling_rights(chess.BLACK))
+    ordinal_board.append(board.has_queenside_castling_rights(chess.BLACK))
+    return torch.tensor(ordinal_board, dtype=torch.int8)
+
+
+def board_to_772tensor(board: chess.Board):
+    """
+    Converts a chess.Board object to a 772 tensor.
+    Order of pieces: kqrbnpPNBRQK
+    """
+    board_64x12tensor = board_to_64x12tensor(board)
+    board_772tensor = torch.zeros(772, dtype=torch.int8)
+    board_772tensor[:768] = board_64x12tensor.flatten()
+    board_772tensor[768] = board.has_kingside_castling_rights(chess.WHITE)
+    board_772tensor[769] = board.has_queenside_castling_rights(chess.WHITE)
+    board_772tensor[770] = board.has_kingside_castling_rights(chess.BLACK)
+    board_772tensor[771] = board.has_queenside_castling_rights(chess.BLACK)
+    return board_772tensor
+
+
 if __name__ == "__main__":
     seq = "1. d4 d5 2. c4 e6 3. e3 Nd7 4. cxd5 exd5 5. Nc3 Ngf6 6. h3 Bd6"
     print(f"Sequence: {seq}")
