@@ -128,13 +128,19 @@ def format_inputs(
     return input_dict
 
 
-def decode_move(move_index: int) -> chess.Move:
+def decode_move(move_index: int, board: chess.Board) -> chess.Move:
     """
     Converts a move index to a chess.Move object.
     """
     if move_index < 4096:
         to_square, from_square = divmod(move_index, 64)
-        return chess.Move(from_square, to_square)
+        mv = chess.Move(from_square, to_square)
+        piece = board.piece_at(from_square)
+        to_rank = to_square // 8
+        if piece.piece_type == chess.PAWN and to_rank in [0, 7]:
+            mv.promotion = chess.QUEEN
+        return mv
+
     else:
         extra_index = move_index - 4096
         promotion = extra_index % 3 + 2
