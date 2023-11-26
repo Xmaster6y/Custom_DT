@@ -128,13 +128,19 @@ def format_inputs(
     return input_dict
 
 
-def decode_move(move_index: int) -> chess.Move:
+def decode_move(move_index: int, board: chess.Board) -> chess.Move:
     """
     Converts a move index to a chess.Move object.
     """
     if move_index < 4096:
         to_square, from_square = divmod(move_index, 64)
-        return chess.Move(from_square, to_square)
+        mv = chess.Move(from_square, to_square)
+        piece = board.piece_at(from_square)
+        to_rank = to_square // 8
+        if piece.piece_type == chess.PAWN and to_rank in [0, 7]:
+            mv.promotion = chess.QUEEN
+        return mv
+
     else:
         extra_index = move_index - 4096
         promotion = extra_index % 3 + 2
@@ -177,6 +183,39 @@ def board_to_64x12tensor(board: chess.Board):
         board_64x12tensor[:, piece_index + 5] = board_64tensor == piece_index
         board_64x12tensor[:, 6 - piece_index] = board_64tensor == -piece_index
     return board_64x12tensor.flatten()
+
+
+def board_to_68tensor(board: chess.Board):
+    """
+    Converts a chess.Board object to a 68 tensor.
+    64 squares + 4 castling rights
+    """
+    fen_rep = board.fen().split(" ")[0]
+    fen_rep = re.sub(r"(\d)", lambda m: "0" * int(m.group(1)), fen_rep)
+    rows = fen_rep.split("/")
+    rev_rows = rows[::-1]
+    ordered_fen = "".join(rev_rows)
+    ordinal_board = list(map(piece_to_index, ordered_fen))
+    ordinal_board.append(board.has_kingside_castling_rights(chess.WHITE))
+    ordinal_board.append(board.has_queenside_castling_rights(chess.WHITE))
+    ordinal_board.append(board.has_kingside_castling_rights(chess.BLACK))
+    ordinal_board.append(board.has_queenside_castling_rights(chess.BLACK))
+    return torch.tensor(ordinal_board, dtype=torch.int8)
+
+
+def board_to_772tensor(board: chess.Board):
+    """
+    Converts a chess.Board object to a 772 tensor.
+    Order of pieces: kqrbnpPNBRQK
+    """
+    board_64x12tensor = board_to_64x12tensor(board)
+    board_772tensor = torch.zeros(772, dtype=torch.int8)
+    board_772tensor[:768] = board_64x12tensor.flatten()
+    board_772tensor[768] = board.has_kingside_castling_rights(chess.WHITE)
+    board_772tensor[769] = board.has_queenside_castling_rights(chess.WHITE)
+    board_772tensor[770] = board.has_kingside_castling_rights(chess.BLACK)
+    board_772tensor[771] = board.has_queenside_castling_rights(chess.BLACK)
+    return board_772tensor
 
 
 if __name__ == "__main__":

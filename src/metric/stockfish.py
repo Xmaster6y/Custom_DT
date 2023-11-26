@@ -2,7 +2,6 @@
 Module implementing the Stockfish metric class.
 """
 
-import os
 import pathlib
 import sys
 from typing import Tuple, Union
@@ -15,8 +14,6 @@ __ALL__ = ["stockfish_eval_board", "stockfish_eval_sequence"]
 
 class StockfishMetric:
     def __init__(self, default_platform: str = "auto"):
-        cwd = os.getcwd()
-        sys.path.append(cwd)
         if default_platform == "auto":
             if sys.platform in ["linux"]:
                 platform = "linux"
@@ -36,7 +33,7 @@ class StockfishMetric:
         else:
             raise ValueError(f"Unknown platform {platform}")
 
-        stockfish_root = list(pathlib.Path(f"{cwd}/stockfish-source/stockfish/").glob(exec_re))[0]
+        stockfish_root = list(pathlib.Path("stockfish-source/stockfish/").glob(exec_re))[0]
         self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_root)
 
     def __del__(self):
