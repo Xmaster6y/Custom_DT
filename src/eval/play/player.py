@@ -7,7 +7,7 @@ from typing import Optional
 import chess
 import torch
 
-from src.utils import translate
+from src.eval.play.inference import InferenceWrapper
 
 
 def pretty_print(board: chess.Board) -> str:
@@ -22,29 +22,26 @@ def pretty_print(board: chess.Board) -> str:
 
 class Player:
     is_human: bool
-    model: Optional[torch.nn.Module]
+    inference_wrapper: Optional[InferenceWrapper]
 
     def __init__(self, handle_illegal: bool = False) -> None:
         self.is_human = True
-        self.model = None
+        self.inference_wrapper = None
         self.format_kwargs = None
         self.handle_illegal = handle_illegal
 
     @classmethod
-    def from_model(
+    def from_inference_wrapper(
         cls,
-        model: torch.nn.Module,
+        inference_wrapper: InferenceWrapper,
         handle_illegal: bool = False,
-        format_kwargs: Optional[dict] = None,
     ):
         """
-        Create a player from a model.
+        Create a player from an inference_wrapper.
         """
         player = cls(handle_illegal=handle_illegal)
         player.is_human = False
-        player.model = model
-        if format_kwargs is not None:
-            player.format_kwargs = format_kwargs
+        player.inference_wrapper = inference_wrapper
         return player
 
     @classmethod
@@ -54,7 +51,7 @@ class Player:
         """
         player = cls()
         player.is_human = False
-        player.model = None
+        player.inference_wrapper = None
         return player
 
     def play(self, board: chess.Board) -> chess.Move:
@@ -64,7 +61,7 @@ class Player:
         if self.is_human:
             return self._play_human(board)
         else:
-            return self._play_model(board)
+            return self._play_inference_wrapper(board)
 
     def _play_human(self, board: chess.Board) -> chess.Move:
         """
@@ -82,32 +79,16 @@ class Player:
             return self._play_human(board)
         return move
 
-    def _play_model(self, board: chess.Board) -> chess.Move:
+    def _play_inference_wrapper(self, board: chess.Board) -> chess.Move:
         """
-        Play a move as a model.
+        Play a move as a inference_wrapper.
         """
-        if self.model is None:
+        if self.inference_wrapper is None:
             n_moves = board.legal_moves.count()
             move_idx = torch.randint(n_moves, (1,)).item()
             return list(board.legal_moves)[move_idx]
         else:
-            move_indices, board_tensors, end_rewards = translate.encode_seq(
-                board.move_stack,
-                board_to_tensor=translate.board_to_64tensor,
-            )
-            input_dict = translate.format_inputs(
-                move_indices,
-                board_tensors,
-                end_rewards,
-                device=torch.device("cpu"),
-                discount=0.99,
-                **self.format_kwargs,
-            )
-            input_dict = {key: input_dict[key].unsqueeze(0) for key in input_dict}
-            output_dict = self.model(**input_dict)
-            logits = output_dict["action_preds"][0, -1, :]
-            move_idx = torch.argmax(logits).item()
-            mv = translate.decode_move(move_idx)
+            mv = self.inference_wrapper(board)
             if mv not in board.legal_moves:
                 print("Illegal move.")
                 raise NotImplementedError("Not implemented yet.")

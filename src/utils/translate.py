@@ -3,12 +3,23 @@ Encoding functions for converting between different representations of the board
 """
 
 import re
+import warnings
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import chess
 import torch
 
 from src.metric.stockfish import StockfishMetric
+
+
+def encode_move(move: chess.Move) -> int:
+    promotion = move.promotion
+    if promotion is not None and promotion != chess.QUEEN:  # Underpromotion
+        direction = (move.to_square % 8) - (move.from_square % 8)
+        extra_index = (promotion - 2) + 3 * (direction + 1) + 9 * move.from_square
+        return 4096 + extra_index
+    else:
+        return move.from_square + 64 * move.to_square
 
 
 def encode_seq(
@@ -31,13 +42,7 @@ def encode_seq(
         else:
             move = alg_move
             board.push(move)
-        promotion = move.promotion
-        if promotion is not None and promotion != chess.QUEEN:  # Underpromotion
-            direction = (move.to_square % 8) - (move.from_square % 8)
-            extra_index = (promotion - 2) + 3 * (direction + 1) + 9 * move.from_square
-            move_indices.append(4096 + extra_index)
-        else:
-            move_indices.append(move.from_square + 64 * move.to_square)
+        move_indices.append(encode_move(move))
         if board_tensors is not None:
             board_tensors.append(board_to_tensor(board))  # type: ignore
     if board_tensors is not None:
@@ -60,16 +65,17 @@ def format_inputs(
     move_indices: List[int],
     board_tensors: List[torch.Tensor],
     end_rewards: Tuple[float, float],
-    sequence: str,
     act_dim: int,
     state_dim: int,
     device: torch.device,
     window_size: int,
     generator: torch.Generator,
+    generate_mode: bool = False,
     return_dict: bool = False,
     return_labels: bool = False,
     one_player: bool = False,
     shaping_rewards: bool = False,
+    sequence: Optional[str] = None,
     stockfish_metric: Optional[StockfishMetric] = None,
 ) -> Union[Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor], Dict[str, torch.Tensor]]:
     """
@@ -78,9 +84,12 @@ def format_inputs(
 
     seq_len = len(move_indices)
     if window_size > seq_len:
-        raise NotImplementedError("Window size must be less than or equal to the sequence length.")
-        # TODO: Implement padding
-    window_start = torch.randint(seq_len - window_size, (1,), generator=generator).item()
+        window_size = seq_len
+        warnings.warn("Window size is greater than sequence length. Setting window size to sequence length.")
+    if generate_mode:
+        window_start = seq_len - window_size
+    else:
+        window_start = torch.randint(seq_len - window_size, (1,), generator=generator).item()
 
     action_seq = torch.nn.functional.one_hot(
         torch.tensor(move_indices[window_start : window_start + window_size], dtype=int), num_classes=act_dim

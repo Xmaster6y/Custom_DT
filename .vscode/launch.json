@@ -8,6 +8,13 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Matchmaking",
+            "type": "python",
+            "request": "launch",
+            "module": "src.eval.matchmaking",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Translate",
             "type": "python",
             "request": "launch",
