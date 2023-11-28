@@ -8,11 +8,13 @@ import pytest
 import torch
 
 import src.utils.translate as translate
+from src.metric.stockfish import StockfishMetric
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
 from src.utils.dataset import OnePlayerChessDataset, TwoPlayersChessDataset
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DIRECTORY = pathlib.Path(__file__).parent.absolute()
+DETECT_PLATFORM = "auto"
 
 
 torch.set_default_device(DEVICE)
@@ -50,7 +52,6 @@ def default_64_chess_dataset():
         board_to_tensor=translate.board_to_64tensor,
         act_dim=4672,
         state_dim=64,
-        discount=0.99,
         window_size=10,
         generator=generator,
         return_ids=True,
@@ -66,7 +67,6 @@ def default_64x12_chess_dataset():
         board_to_tensor=translate.board_to_64x12tensor,
         act_dim=4672,
         state_dim=768,
-        discount=0.99,
         window_size=10,
         generator=generator,
         return_ids=True,
@@ -82,7 +82,6 @@ def op_64_chess_dataset():
         board_to_tensor=translate.board_to_64tensor,
         act_dim=4672,
         state_dim=64,
-        discount=0.99,
         window_size=10,
         generator=generator,
         return_ids=True,
@@ -98,8 +97,14 @@ def op_64x12_chess_dataset():
         board_to_tensor=translate.board_to_64x12tensor,
         act_dim=4672,
         state_dim=768,
-        discount=0.99,
         window_size=10,
         generator=generator,
         return_ids=True,
     )
+
+
+@pytest.fixture(scope="session")
+def stockfish_metric():
+    metric = StockfishMetric(default_platform=DETECT_PLATFORM)
+    yield metric
+    del metric
