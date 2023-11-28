@@ -4,7 +4,7 @@ File implementing the game class.
 
 import chess
 
-from src.eval.play import Player
+from src.eval.play.player import Player
 
 
 class Game:
@@ -24,9 +24,9 @@ class Game:
         """
         while not self.board.is_game_over():
             if self.board.turn == chess.WHITE:
-                move = self.white.play(self.board, move_stack=self.board.move_stack)
+                move = self.white.play(self.board)
             else:
-                move = self.black.play(self.board, move_stack=self.board.move_stack)
+                move = self.black.play(self.board)
             if move not in self.board.legal_moves:
                 print(f"Player {self.board.turn} made an illegal move: {move}")
                 break

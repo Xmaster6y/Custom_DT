@@ -19,8 +19,8 @@ def encode_seq(
     """
     if board is None:
         board = chess.Board()
-    if isinstance(seq, str):
-        move_seq = [s for s in seq.split() if not s.endswith(".")]
+    if isinstance(move_seq, str):
+        move_seq = [s for s in move_seq.split() if not s.endswith(".")]
     move_indices = []
     board_tensors = None if board_to_tensor is None else [board_to_tensor(board)]
     for alg_move in move_seq:
