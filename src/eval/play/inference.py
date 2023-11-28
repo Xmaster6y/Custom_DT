@@ -52,10 +52,7 @@ class InferenceWrapper:
         device = self.config.device
 
         seq_len = len(self.board_tensors)
-        if self.config.window_size > seq_len:
-            window_size = seq_len
-        else:
-            window_size = self.config.window_size
+        window_size = min(self.config.window_size, seq_len)
         window_start = seq_len - window_size
 
         action_seq = torch.nn.functional.one_hot(
@@ -85,13 +82,12 @@ class InferenceWrapper:
             1, window_size
         )
 
-        input_dict = {
+        return {
             "states": states,
             "actions": actions,
             "returns_to_go": returns_to_go,
             "timesteps": timesteps,
         }
-        return input_dict
 
     def __call__(self, board: chess.Board):
         """

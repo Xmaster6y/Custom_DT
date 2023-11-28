@@ -14,12 +14,10 @@ from src.metric.stockfish import StockfishMetric
 
 def encode_move(move: chess.Move) -> int:
     promotion = move.promotion
-    if promotion is not None and promotion != chess.QUEEN:  # Underpromotion
-        direction = (move.to_square % 8) - (move.from_square % 8)
-        extra_index = (promotion - 2) + 3 * (direction + 1) + 9 * move.from_square
-        return 4096 + extra_index
-    else:
+    if promotion is None or promotion == chess.QUEEN:
         return move.from_square + 64 * move.to_square
+    direction = (move.to_square % 8) - (move.from_square % 8)
+    return 4096 + ((promotion - 2) + 3 * (direction + 1) + 9 * move.from_square)
 
 
 def encode_seq(
