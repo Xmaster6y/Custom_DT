@@ -100,9 +100,9 @@ class StockfishMetric:
         if player == "white" or (
             player == "both" and board.turn == chess.BLACK
         ):  # white has just moved if turn is black
-            evaluation = info["score"].white().score(mate_score=1000) / 1000
+            evaluation = info["score"].white().score(mate_score=10000) / 10000
         else:
-            evaluation = info["score"].black().score(mate_score=1000) / 1000
+            evaluation = info["score"].black().score(mate_score=10000) / 10000
         return (evaluation, info) if return_info else evaluation
 
     def eval_sequence(self, sequence: str, player: str = "white", evaluation_depth: int = 8) -> list:

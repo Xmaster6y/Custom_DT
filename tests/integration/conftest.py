@@ -4,6 +4,8 @@ Fixtures for testing utils.
 
 import pathlib
 
+import chess
+import jsonlines
 import pytest
 import torch
 
@@ -108,3 +110,20 @@ def stockfish_metric():
     metric = StockfishMetric(default_platform=DETECT_PLATFORM)
     yield metric
     del metric
+
+
+@pytest.fixture(scope="module")
+def default_dataset_boards():
+    file_name = f"{DIRECTORY}/assets/test_stockfish_10.jsonl"
+    games = []
+    with jsonlines.open(file_name) as reader:
+        games.extend(iter(reader))
+    board_list = []
+    for game in games:
+        board = chess.Board()
+        for alg_move in game["moves"].split():
+            if alg_move.endswith("."):
+                continue
+            board.push_san(alg_move)
+        board_list.append(board)
+    yield board_list
