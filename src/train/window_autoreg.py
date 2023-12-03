@@ -36,7 +36,7 @@ args = parser.parse_args()
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if args.name is None:
-    NAME = f"dt_{args.state_dim}_{args.window_size}_{args.n_epochs}_{args.lr}"
+    NAME = f"dt_{args.state_dim}_{args.window_size}_{args.train_batch_size}_{args.lr}"
 else:
     NAME = args.name
 if args.debug:
