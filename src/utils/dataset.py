@@ -162,5 +162,4 @@ class LeelaChessDataset(Dataset):
             return_last_board=False,
             move_evaluator=self.move_evaluator,
         )
-        input_dict = leela_encodings.format_inputs(encoded_seq)
-        return input_dict
+        return leela_encodings.format_inputs(encoded_seq)
