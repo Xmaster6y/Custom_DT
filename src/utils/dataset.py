@@ -9,6 +9,7 @@ import jsonlines
 import torch
 from torch.utils.data import Dataset
 
+import src.utils.leela_encodings as leela_encodings
 import src.utils.translate as translate
 from src.metric.stockfish import StockfishMetric
 
@@ -129,4 +130,37 @@ class OnePlayerChessDataset(Dataset):
                 input_dict[key] = input_dict[key].squeeze(0)  # Remove batch dim
         if self.return_ids:
             input_dict["gameid"] = self.games[idx]["gameid"]
+        return input_dict
+
+
+class LeelaChessDataset(Dataset):
+    def __init__(
+        self,
+        file_name: str,
+        window_size: int,
+        generator: torch.Generator,
+        eval_mode: bool = False,
+        move_evaluator: Optional[Callable[[chess.Board], float]] = None,
+    ):
+        self.games = []  # Can be heavy on memory, but good enough for now
+        with jsonlines.open(file_name) as reader:
+            self.games.extend(iter(reader))
+        self.device = torch.device("cpu")  # Load full dataset on cpu
+        self.window_size = window_size
+        self.generator = generator
+        self.eval_mode = eval_mode
+        self.move_evaluator = move_evaluator
+
+    def __len__(self):
+        return len(self.games)
+
+    def __getitem__(self, idx):
+        encoded_seq = leela_encodings.encode_seq(
+            seq=self.games[idx]["moves"],
+            board_to_tensor=leela_encodings.board_to_tensor,
+            move_to_index=leela_encodings.encode_move,
+            return_last_board=False,
+            move_evaluator=self.move_evaluator,
+        )
+        input_dict = leela_encodings.format_inputs(encoded_seq)
         return input_dict

@@ -9,7 +9,7 @@ from typing import Callable, Tuple
 import chess
 import torch
 
-from src.utils.leela_constants import INVERTED_POLICY_INDEX, POLICY_INDEX
+from src.utils.leela_constants import ACT_DIM, INVERTED_POLICY_INDEX, POLICY_INDEX, STATE_DIM
 
 
 def board_to_tensor13x8x8(
@@ -88,6 +88,7 @@ def board_to_tensor(
     board_planes = 13 * (num_past_states + 1)
     extra_planes = 7
     final_tensor = torch.zeros((board_planes + extra_planes, 8, 8), dtype=torch.float)
+    final_tensor[:13] = tensor13x8x8
     if last_board.has_queenside_castling_rights(us):
         final_tensor[board_planes] = torch.ones((8, 8), dtype=torch.float)
     if last_board.has_kingside_castling_rights(us):
@@ -153,10 +154,10 @@ def decode_move(
 
 def encode_seq(
     seq: str,
-    board_to_tensor: Callable[[chess.Board], torch.Tensor],
-    move_to_index: Callable[[chess.Move], int],
+    board_to_tensor: Callable[[chess.Board, Tuple[bool, bool]], torch.Tensor],
+    move_to_index: Callable[[chess.Move, Tuple[bool, bool]], int],
     return_last_board: bool = False,
-    move_evaluator: Callable[[chess.Board], float] = None,
+    move_evaluator: Callable[[chess.Board, Tuple[bool, bool]], float] = None,
 ):
     """
     Converts a sequence of moves in algebraic notation to a sequence of move indices.
@@ -182,7 +183,7 @@ def encode_seq(
         move = board.push_san(alg_move)
         move_indices[us].append(move_to_index(move, (us, them)))
         if move_evaluator is not None:
-            move_evaluations[us].append(move_evaluator(board))
+            move_evaluations[us].append(move_evaluator(board, (us, them)))
         us, them = them, us
 
     outcome = board.outcome()
@@ -202,5 +203,127 @@ def encode_seq(
         "move_indices": move_indices,
         "board_tensors": board_tensors,
         "end_rewards": end_rewards,
+        "move_evaluations": move_evaluations,
         "last_board": board if return_last_board else None,
     }
+
+
+def format_tensors(
+    move_indices: list,
+    board_tensors: list,
+    end_reward: tuple,
+    window_size: int,
+    device: torch.device,
+    window_start: int = 0,
+    move_evaluations: list = None,
+    shaping_rewards: bool = False,
+):
+    """
+    Converts an encoded sequence to a dictionary of tensors.
+    """
+    seq_len = len(move_indices)
+    if window_start + window_size > seq_len:
+        window_remainder = window_start + window_size - seq_len
+        window_end = seq_len
+    else:
+        window_remainder = 0
+        window_end = window_start + window_size
+    attention_mask = torch.zeros((1, window_size), dtype=torch.float32)
+    attention_mask[:, : window_size - window_remainder] = 1.0
+
+    action_seq = torch.nn.functional.one_hot(
+        torch.tensor(move_indices[window_start:window_end] + [0] * window_remainder, dtype=int), num_classes=ACT_DIM
+    )
+    actions = action_seq.reshape(1, window_size, ACT_DIM).to(device=device, dtype=torch.float32)
+
+    state_seq = torch.stack(board_tensors[window_start:window_end])
+    states = state_seq.reshape(1, window_size, STATE_DIM).to(device=device, dtype=torch.float32)
+    states = torch.cat((states, torch.zeros((1, window_remainder, STATE_DIM), dtype=torch.float32)), dim=1)
+
+    returns_to_go = torch.zeros(1, window_size, 1, device=device, dtype=torch.float32)
+    returns_to_go[:, : window_size - window_remainder, :] = torch.full(
+        (1, window_size - window_remainder, 1), end_reward, device=device, dtype=torch.float32
+    )
+
+    if shaping_rewards:
+        if move_evaluations is None:
+            raise ValueError("No move evaluations provided.")
+        last_eval = move_evaluations[-1]
+        previous_move_evaluations = [0] + move_evaluations[:-1]
+        evaluations = torch.tensor(
+            [previous_move_evaluations[window_start:window_end] + [last_eval] * window_remainder],
+            device=device,
+            dtype=torch.float32,
+        )
+        returns_to_go = returns_to_go + last_eval - evaluations
+
+    return states, actions, returns_to_go, attention_mask
+
+
+def format_inputs(
+    encoded_seq: dict,
+    device: torch.device,
+    window_size: int,
+    generator: torch.Generator,
+    return_labels: bool = False,
+    one_player: bool = True,
+    shaping_rewards: bool = False,
+):
+    """
+    Converts an encoded sequence to a dictionary of tensors.
+    """
+    move_indices = encoded_seq["move_indices"]
+    board_tensors = encoded_seq["board_tensors"]
+    end_rewards = encoded_seq["end_rewards"]
+    move_evaluations = encoded_seq["move_evaluations"]
+
+    colors = {0: chess.WHITE, 1: chess.BLACK}
+    if one_player:
+        color_ind = torch.randint(2, (1,), generator=generator).item()
+        players = [color_ind]
+    else:
+        players = [0, 1]
+
+    seq_len = len(move_indices[colors[0]])
+    if window_size >= seq_len:
+        window_start = 0
+    else:
+        window_start = torch.randint(seq_len - window_size, (1,), generator=generator).item()
+    states, actions, returns_to_go, attention_mask, timesteps = [], [], [], [], []
+    for player in players:
+        color = colors[player]
+        player_states, player_actions, player_returns_to_go, player_attention_mask = format_tensors(
+            move_indices[color],
+            board_tensors[color],
+            end_rewards[color],
+            window_size,
+            device,
+            window_start=window_start,
+            move_evaluations=move_evaluations[color] if shaping_rewards else None,
+            shaping_rewards=shaping_rewards,
+        )
+        player_timesteps = player + torch.arange(
+            start=2 * window_start, end=2 * window_start + 2 * window_size, step=2, device=device
+        ).unsqueeze(0)
+        states.append(player_states.unsqueeze(2))
+        actions.append(player_actions.unsqueeze(2))
+        returns_to_go.append(player_returns_to_go.unsqueeze(2))
+        attention_mask.append(player_attention_mask.unsqueeze(2))
+        timesteps.append(player_timesteps.unsqueeze(2))
+    n_players = len(players)
+    states = torch.cat(states, dim=2).reshape(1, n_players * window_size, STATE_DIM)
+    actions = torch.cat(actions, dim=2).reshape(1, n_players * window_size, ACT_DIM)
+    returns_to_go = torch.cat(returns_to_go, dim=2).reshape(1, n_players * window_size, 1)
+    attention_mask = torch.cat(attention_mask, dim=2).reshape(1, n_players * window_size)
+    timesteps = torch.cat(timesteps, dim=2).reshape(1, n_players * window_size)
+
+    input_dict = {
+        "states": states,
+        "actions": actions,
+        "returns_to_go": returns_to_go,
+        "attention_mask": attention_mask,
+        "timesteps": timesteps,
+    }
+    if return_labels:
+        input_dict["labels"] = actions
+    return input_dict

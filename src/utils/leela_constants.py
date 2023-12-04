@@ -2,6 +2,8 @@
 Constants for the Leela Zero engine.
 """
 
+STATE_DIM = 1280
+ACT_DIM = 1858
 
 POLICY_INDEX = [
     "a1b1",
