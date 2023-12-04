@@ -11,7 +11,8 @@ version = "0.0.1"
 description = "Custom Decision Transformer Modeling."
 license = "MIT"
 authors = [
-    "Yoann Poupart <yoann.poupart@ens-lyon.org",
+    "Yoann Poupart <yoann.poupart@ens-lyon.org>",
+    "Sam Johnson"
 ]
 
 [[tool.poetry.source]]
