@@ -261,7 +261,7 @@ def format_tensors(
             [previous_move_evaluations[window_start:window_end] + [last_eval] * window_remainder],
             device=device,
             dtype=torch.float32,
-        )
+        ).unsqueeze(2)
         returns_to_go = returns_to_go + last_eval - evaluations
 
     return states, actions, returns_to_go, attention_mask
