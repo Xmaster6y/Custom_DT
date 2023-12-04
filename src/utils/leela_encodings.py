@@ -24,14 +24,21 @@ def board_to_tensor13x8x8(
     plane_orders = {chess.WHITE: "PNBRQK", chess.BLACK: "pnbrqk"}
     plane_order = plane_orders[us] + plane_orders[them]
 
+    def piece_to_index(piece: str):
+        return (plane_order + "0").index(piece)
+
     fen_rep = board.fen().split(" ")[0]
     fen_rep = re.sub(r"(\d)", lambda m: "0" * int(m.group(1)), fen_rep)
     rows = fen_rep.split("/")
     rev_rows = rows[::-1]
     ordered_fen = "".join(rev_rows)
+
     tensor13x8x8 = torch.zeros((13, 8, 8), dtype=torch.float)
-    for i, piece in enumerate(plane_order):
-        tensor13x8x8[i] = torch.tensor([[1 if c == piece else 0 for c in row] for row in ordered_fen]).view(8, 8)
+    ordinal_board = torch.tensor(tuple(map(piece_to_index, ordered_fen)), dtype=torch.float)
+    ordinal_board = ordinal_board.reshape((8, 8)).unsqueeze(0)
+    piece_tensor = torch.tensor(tuple(map(piece_to_index, plane_order)), dtype=torch.float)
+    piece_tensor = piece_tensor.reshape((12, 1, 1))
+    tensor13x8x8[:12] = (ordinal_board == piece_tensor).float()
     if board.is_repetition(repetition):
         tensor13x8x8[12] = torch.ones((8, 8), dtype=torch.float)
     return tensor13x8x8

@@ -29,6 +29,13 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Leela",
+            "type": "python",
+            "request": "launch",
+            "module": "src.train.leela",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Tests",
             "type": "python",
             "request": "launch",

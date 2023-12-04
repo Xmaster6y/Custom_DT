@@ -163,7 +163,7 @@ class LeelaChessDataset(Dataset):
             return_last_board=False,
             move_evaluator=self.move_evaluator,
         )
-        return leela_encodings.format_inputs(
+        input_dict = leela_encodings.format_inputs(
             encoded_seq=encoded_seq,
             device=self.device,
             window_size=self.window_size,
@@ -172,3 +172,7 @@ class LeelaChessDataset(Dataset):
             one_player=self.one_player,
             shaping_rewards=self.move_evaluator is not None,
         )
+        for key in input_dict:
+            if isinstance(input_dict[key], torch.Tensor):
+                input_dict[key] = input_dict[key].squeeze(0)  # Remove batch dim
+        return input_dict

@@ -20,6 +20,8 @@ parser.add_argument("--training", action=argparse.BooleanOptionalAction, default
 # Config
 parser.add_argument("--window-size", type=int, default=10)
 parser.add_argument("--seed", type=int, default=42)
+parser.add_argument("--layers", type=int, default=6)
+parser.add_argument("--heads", type=int, default=4)
 # Training
 parser.add_argument("--name", type=str, default=None)
 parser.add_argument("--overwrite", action=argparse.BooleanOptionalAction, default=False)
@@ -30,6 +32,7 @@ parser.add_argument("--train-batch-size", type=int, default=50)
 parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
 parser.add_argument("--eval-batch-size", type=int, default=500)
 parser.add_argument("--lr", type=float, default=1e-5)
+parser.add_argument("--one-player", action=argparse.BooleanOptionalAction, default=True)
 parser.add_argument("--use-stockfish-eval", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--stockfish-eval-depth", type=int, default=6)
 parser.add_argument("--resume-from-checkpoint", action=argparse.BooleanOptionalAction, default=False)
@@ -38,7 +41,12 @@ args = parser.parse_args()
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if args.name is None:
-    NAME = f"leela{'_sf' if args.use_stockfish_eval else ''}_{args.window_size}_{args.train_batch_size}_{args.lr}"
+    NAME = (
+        f"leela{'_sf' if args.use_stockfish_eval else ''}"
+        f"{'_1p' if args.one_player else '_2p'}"
+        f"L{args.layers}_H{args.heads}"
+        f"_{args.window_size}_{args.train_batch_size}_{args.lr}"
+    )
 else:
     NAME = args.name
 if args.debug:
@@ -67,6 +75,7 @@ eval_dataset = LeelaChessDataset(
     window_size=args.window_size,
     generator=eval_generator,
     eval_mode=True,
+    one_player=args.one_player,
 )
 eval_dataset_len = len(eval_dataset)
 
@@ -81,12 +90,17 @@ train_dataset = LeelaChessDataset(
     move_evaluator=move_evaluator,
     window_size=args.window_size,
     generator=train_generator,
+    eval_mode=False,
+    one_player=args.one_player,
 )
 train_dataset_len = len(train_dataset)
 
 conf = DecisionTransformerConfig(
     state_dim=STATE_DIM,
     act_dim=ACT_DIM,
+    n_layers=args.layers,
+    n_heads=args.heads,
+    hidden_size=64 * args.heads,
 )
 model = DecisionTransformerModel(conf)
 
