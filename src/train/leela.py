@@ -103,7 +103,7 @@ conf = DecisionTransformerConfig(
     hidden_size=64 * args.heads,
 )
 model = DecisionTransformerModel(conf)
-
+model.to(DEVICE)
 
 trainer_args = TrainingArguments(
     output_dir=OUTPUT_DIR,
