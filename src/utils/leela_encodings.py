@@ -25,7 +25,7 @@ def board_to_tensor13x8x8(
     plane_order = plane_orders[us] + plane_orders[them]
 
     def piece_to_index(piece: str):
-        return (plane_order + "0").index(piece)
+        return f"{plane_order}0".index(piece)
 
     fen_rep = board.fen().split(" ")[0]
     fen_rep = re.sub(r"(\d)", lambda m: "0" * int(m.group(1)), fen_rep)
