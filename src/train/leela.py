@@ -67,7 +67,7 @@ if args.use_stockfish_eval:
 else:
     move_evaluator = None
 
-eval_generator = torch.Generator(device=DEVICE)
+eval_generator = torch.Generator()
 eval_generator.manual_seed(args.seed)
 eval_dataset = LeelaChessDataset(
     file_name="data/chess_games_base/test_stockfish_5000.jsonl",
@@ -79,7 +79,7 @@ eval_dataset = LeelaChessDataset(
 )
 eval_dataset_len = len(eval_dataset)
 
-train_generator = torch.Generator(device=DEVICE)
+train_generator = torch.Generator()
 train_generator.manual_seed(args.seed)
 if args.debug:
     train_dataset_file = "data/chess_games_base/test_stockfish_5000.jsonl"
