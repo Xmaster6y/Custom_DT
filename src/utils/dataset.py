@@ -9,9 +9,8 @@ import jsonlines
 import torch
 from torch.utils.data import Dataset
 
-import src.utils.leela_encodings as leela_encodings
-import src.utils.translate as translate
 from src.metric.stockfish import StockfishMetric
+from src.utils import leela_encodings, translate
 
 
 class TwoPlayersChessDataset(Dataset):
@@ -141,6 +140,7 @@ class LeelaChessDataset(Dataset):
         generator: torch.Generator,
         eval_mode: bool = False,
         move_evaluator: Optional[Callable[[chess.Board], float]] = None,
+        one_player: bool = False,
     ):
         self.games = []  # Can be heavy on memory, but good enough for now
         with jsonlines.open(file_name) as reader:
@@ -150,6 +150,7 @@ class LeelaChessDataset(Dataset):
         self.generator = generator
         self.eval_mode = eval_mode
         self.move_evaluator = move_evaluator
+        self.one_player = one_player
 
     def __len__(self):
         return len(self.games)
@@ -162,4 +163,12 @@ class LeelaChessDataset(Dataset):
             return_last_board=False,
             move_evaluator=self.move_evaluator,
         )
-        return leela_encodings.format_inputs(encoded_seq)
+        return leela_encodings.format_inputs(
+            encoded_seq=encoded_seq,
+            device=self.device,
+            window_size=self.window_size,
+            generator=self.generator,
+            return_labels=self.eval_mode,
+            one_player=self.one_player,
+            shaping_rewards=self.move_evaluator is not None,
+        )
