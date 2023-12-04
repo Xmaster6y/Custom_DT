@@ -244,7 +244,7 @@ def format_tensors(
     actions = action_seq.reshape(1, window_size, ACT_DIM).to(device=device, dtype=torch.float32)
 
     state_seq = torch.stack(board_tensors[window_start:window_end])
-    states = state_seq.reshape(1, window_size, STATE_DIM).to(device=device, dtype=torch.float32)
+    states = state_seq.reshape(1, window_end - window_start, STATE_DIM).to(device=device, dtype=torch.float32)
     states = torch.cat((states, torch.zeros((1, window_remainder, STATE_DIM), dtype=torch.float32)), dim=1)
 
     returns_to_go = torch.zeros(1, window_size, 1, device=device, dtype=torch.float32)

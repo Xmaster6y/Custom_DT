@@ -103,7 +103,7 @@ conf = DecisionTransformerConfig(
     hidden_size=64 * args.heads,
 )
 model = DecisionTransformerModel(conf)
-model.to(DEVICE)
+model.to(DEVICE)  # Not necessary
 
 trainer_args = TrainingArguments(
     output_dir=OUTPUT_DIR,
@@ -121,6 +121,7 @@ trainer_args = TrainingArguments(
     num_train_epochs=args.n_epochs,
     gradient_accumulation_steps=args.gradient_accumulation_steps,
     run_name="latest",
+    fp16=True,
 )
 
 trainer = DecisionTransformerTrainer(
