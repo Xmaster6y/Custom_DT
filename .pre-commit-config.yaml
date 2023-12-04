@@ -1,11 +1,11 @@
 repos:
 -   repo: https://github.com/psf/black
-    rev: 23.1.0
+    rev: 23.11.0
     hooks:
     -   id: black
         args: ["--config", "pyproject.toml"]
 -   repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v4.5.0
     hooks:
     -   id: check-added-large-files
         args: ['--maxkb=600']
@@ -15,12 +15,20 @@ repos:
     -   id: end-of-file-fixer
     -   id: trailing-whitespace
     -   id: check-docstring-first
+-   repo: https://github.com/roy-ht/pre-commit-jupyter
+    rev: v1.2.1
+    hooks:
+    -   id: jupyter-notebook-cleanup
+        args:
+        -   --remove-kernel-metadata
+        -   --pin-patterns
+        -   "[pin];[donotremove]"
 -   repo: https://gitlab.com/smop/pre-commit-hooks
     rev: v1.0.0
     hooks:
     -   id: check-poetry
 -   repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
+    rev: 6.1.0
     hooks:
     -   id: flake8
         args: [
@@ -29,7 +37,7 @@ repos:
             '--per-file-ignores=src/**/__init__.py:F401 src/**/**/*decision_transformer.py:E501'
         ]
 -   repo: https://github.com/pycqa/isort
-    rev: 5.11.5
+    rev: 5.12.0
     hooks:
     -   id: isort
         args: ["--settings-path", "pyproject.toml"]
