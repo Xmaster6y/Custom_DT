@@ -194,7 +194,9 @@ def encode_seq(
         us, them = them, us
 
     outcome = board.outcome()
-    if outcome.winner == chess.WHITE:
+    if outcome is None:
+        end_rewards = (0.5, 0.5)
+    elif outcome.winner == chess.WHITE:
         end_rewards = (1.0, -1.0)
     elif outcome.winner == chess.BLACK:
         end_rewards = (-1.0, 1.0)
