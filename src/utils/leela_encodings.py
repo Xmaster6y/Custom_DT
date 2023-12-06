@@ -164,7 +164,7 @@ def encode_seq(
     board_to_tensor: Callable[[chess.Board, Tuple[bool, bool]], torch.Tensor],
     move_to_index: Callable[[chess.Move, Tuple[bool, bool]], int],
     return_last_board: bool = False,
-    move_evaluator: Callable[[chess.Board, Tuple[bool, bool]], float] = None,
+    position_evaluator: Callable[[chess.Board, Tuple[bool, bool]], float] = None,
 ):
     """
     Converts a sequence of moves in algebraic notation to a sequence of move indices.
@@ -178,25 +178,23 @@ def encode_seq(
         chess.WHITE: [],
         chess.BLACK: [],
     }
-    move_evaluations = {
+    position_evaluations = {
         chess.WHITE: [],
         chess.BLACK: [],
     }
     us, them = chess.WHITE, chess.BLACK
     for alg_move in seq.split():
         board_tensors[us].append(board_to_tensor(board, (us, them)))
+        if position_evaluator is not None:
+            position_evaluations[us].append(position_evaluator(board, (us, them)))
         if alg_move.endswith("."):
             continue
         move = board.push_san(alg_move)
         move_indices[us].append(move_to_index(move, (us, them)))
-        if move_evaluator is not None:
-            move_evaluations[us].append(move_evaluator(board, (us, them)))
         us, them = them, us
 
     outcome = board.outcome()
-    if outcome is None:
-        end_rewards = (0.0, 0.0)
-    elif outcome.winner == chess.WHITE:
+    if outcome.winner == chess.WHITE:
         end_rewards = (1.0, -1.0)
     elif outcome.winner == chess.BLACK:
         end_rewards = (-1.0, 1.0)
@@ -210,7 +208,7 @@ def encode_seq(
         "move_indices": move_indices,
         "board_tensors": board_tensors,
         "end_rewards": end_rewards,
-        "move_evaluations": move_evaluations,
+        "position_evaluations": position_evaluations,
         "last_board": board if return_last_board else None,
     }
 
@@ -222,7 +220,7 @@ def format_tensors(
     window_size: int,
     device: torch.device,
     window_start: int = 0,
-    move_evaluations: list = None,
+    position_evaluations: list = None,
     shaping_rewards: bool = False,
 ):
     """
@@ -253,10 +251,10 @@ def format_tensors(
     )
 
     if shaping_rewards:
-        if move_evaluations is None:
+        if position_evaluations is None:
             raise ValueError("No move evaluations provided.")
         evaluations = torch.tensor(
-            [move_evaluations[window_start:window_end] + [0.0] * window_remainder],
+            [position_evaluations[window_start:window_end] + [0.0] * window_remainder],
             device=device,
             dtype=torch.float32,
         ).unsqueeze(2)
@@ -280,7 +278,7 @@ def format_inputs(
     move_indices = encoded_seq["move_indices"]
     board_tensors = encoded_seq["board_tensors"]
     end_rewards = encoded_seq["end_rewards"]
-    move_evaluations = encoded_seq["move_evaluations"]
+    position_evaluations = encoded_seq["position_evaluations"]
 
     colors = {0: chess.WHITE, 1: chess.BLACK}
     if one_player:
@@ -304,7 +302,7 @@ def format_inputs(
             window_size,
             device,
             window_start=window_start,
-            move_evaluations=move_evaluations[color] if shaping_rewards else None,
+            position_evaluations=position_evaluations[color] if shaping_rewards else None,
             shaping_rewards=shaping_rewards,
         )
         player_timesteps = player + torch.arange(

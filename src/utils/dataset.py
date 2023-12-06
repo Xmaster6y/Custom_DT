@@ -139,7 +139,7 @@ class LeelaChessDataset(Dataset):
         window_size: int,
         generator: torch.Generator,
         eval_mode: bool = False,
-        move_evaluator: Optional[Callable[[chess.Board], float]] = None,
+        position_evaluator: Optional[Callable[[chess.Board], float]] = None,
         one_player: bool = False,
     ):
         self.games = []  # Can be heavy on memory, but good enough for now
@@ -149,7 +149,7 @@ class LeelaChessDataset(Dataset):
         self.window_size = window_size
         self.generator = generator
         self.eval_mode = eval_mode
-        self.move_evaluator = move_evaluator
+        self.position_evaluator = position_evaluator
         self.one_player = one_player
 
     def __len__(self):
@@ -161,7 +161,7 @@ class LeelaChessDataset(Dataset):
             board_to_tensor=leela_encodings.board_to_tensor,
             move_to_index=leela_encodings.encode_move,
             return_last_board=False,
-            move_evaluator=self.move_evaluator,
+            position_evaluator=self.position_evaluator,
         )
         input_dict = leela_encodings.format_inputs(
             encoded_seq=encoded_seq,
@@ -170,7 +170,7 @@ class LeelaChessDataset(Dataset):
             generator=self.generator,
             return_labels=self.eval_mode,
             one_player=self.one_player,
-            shaping_rewards=self.move_evaluator is not None,
+            shaping_rewards=self.position_evaluator is not None,
         )
         for key in input_dict:
             if isinstance(input_dict[key], torch.Tensor):

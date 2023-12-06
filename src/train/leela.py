@@ -60,18 +60,18 @@ else:
 if args.use_stockfish_eval:
     stockfish_metric = StockfishMetric()
 
-    def move_evaluator(board, us_them):
+    def position_evaluator(board, us_them):
         player = "white" if us_them[0] == chess.WHITE else "black"
         return stockfish_metric.eval_board(board, player=player, evaluation_depth=args.stockfish_eval_depth)
 
 else:
-    move_evaluator = None
+    position_evaluator = None
 
 eval_generator = torch.Generator()
 eval_generator.manual_seed(args.seed)
 eval_dataset = LeelaChessDataset(
     file_name="data/chess_games_base/test_stockfish_5000.jsonl",
-    move_evaluator=move_evaluator,
+    position_evaluator=position_evaluator,
     window_size=args.window_size,
     generator=eval_generator,
     eval_mode=True,
@@ -87,7 +87,7 @@ else:
     train_dataset_file = "data/chess_games_base/train_stockfish_262k.jsonl"
 train_dataset = LeelaChessDataset(
     file_name=train_dataset_file,
-    move_evaluator=move_evaluator,
+    position_evaluator=position_evaluator,
     window_size=args.window_size,
     generator=train_generator,
     eval_mode=False,
