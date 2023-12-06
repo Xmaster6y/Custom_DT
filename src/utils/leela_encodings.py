@@ -255,14 +255,12 @@ def format_tensors(
     if shaping_rewards:
         if move_evaluations is None:
             raise ValueError("No move evaluations provided.")
-        last_eval = move_evaluations[-1]
-        previous_move_evaluations = [0] + move_evaluations[:-1]
         evaluations = torch.tensor(
-            [previous_move_evaluations[window_start:window_end] + [last_eval] * window_remainder],
+            [move_evaluations[window_start:window_end] + [0.0] * window_remainder],
             device=device,
             dtype=torch.float32,
         ).unsqueeze(2)
-        returns_to_go = returns_to_go + last_eval - evaluations
+        returns_to_go = returns_to_go - evaluations
 
     return states, actions, returns_to_go, attention_mask
 
