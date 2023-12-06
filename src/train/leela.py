@@ -36,6 +36,7 @@ parser.add_argument("--one-player", action=argparse.BooleanOptionalAction, defau
 parser.add_argument("--use-stockfish-eval", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--stockfish-eval-depth", type=int, default=6)
 parser.add_argument("--resume-from-checkpoint", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--output-root", type=str, default="")
 
 args = parser.parse_args()
 
@@ -50,11 +51,11 @@ if args.name is None:
 else:
     NAME = args.name
 if args.debug:
-    OUTPUT_DIR = "weights/debug"
-    LOGGING_DIR = "logging/debug"
+    OUTPUT_DIR = f"{args.output_root}weights/debug"
+    LOGGING_DIR = f"{args.output_root}logging/debug"
 else:
-    OUTPUT_DIR = f"weights/{NAME}"
-    LOGGING_DIR = f"logging/{NAME}"
+    OUTPUT_DIR = f"{args.output_root}weights/{NAME}"
+    LOGGING_DIR = f"{args.output_root}logging/{NAME}"
 
 
 if args.use_stockfish_eval:

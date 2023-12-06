@@ -3,7 +3,6 @@ File containing the encodings for the Leela Chess Zero engine.
 """
 
 import re
-from copy import deepcopy
 from typing import Callable, Tuple
 
 import chess
@@ -44,38 +43,6 @@ def board_to_tensor13x8x8(
     return tensor13x8x8
 
 
-def board_to_tensor112x8x8(last_board: chess.Board, us_them: Tuple[bool, bool]):
-    """
-    Create the lc0 112x8x8 tensor from the history of a game.
-    """
-    board = deepcopy(last_board)
-    tensor112x8x8 = torch.zeros((112, 8, 8), dtype=torch.int8)
-    us, them = us_them
-    for i in range(8):
-        tensor13x8x8 = board_to_tensor13x8x8(board, (us, them))
-        if us == chess.BLACK:
-            tensor13x8x8 = tensor13x8x8.flip(1)
-        tensor112x8x8[i * 13 : (i + 1) * 13] = tensor13x8x8
-        try:
-            board.pop()
-        except IndexError:
-            break
-    if last_board.has_queenside_castling_rights(us):
-        tensor112x8x8[104] = torch.ones((8, 8), dtype=torch.int8)
-    if last_board.has_kingside_castling_rights(us):
-        tensor112x8x8[105] = torch.ones((8, 8), dtype=torch.int8)
-    if last_board.has_queenside_castling_rights(them):
-        tensor112x8x8[106] = torch.ones((8, 8), dtype=torch.int8)
-    if last_board.has_kingside_castling_rights(them):
-        tensor112x8x8[107] = torch.ones((8, 8), dtype=torch.int8)
-    if us == chess.BLACK:
-        tensor112x8x8[108] = torch.ones((8, 8), dtype=torch.int8)
-    if last_board.is_fifty_moves():
-        tensor112x8x8[109] = torch.ones((8, 8), dtype=torch.int8)
-    tensor112x8x8[111] = torch.ones((8, 8), dtype=torch.int8)
-    return tensor112x8x8
-
-
 def board_to_tensor(
     board: chess.Board,
     us_them: Tuple[bool, bool],
@@ -91,7 +58,7 @@ def board_to_tensor(
     us, them = us_them
     tensor13x8x8 = board_to_tensor13x8x8(board, (us, them))
     if flip and them == chess.WHITE:
-        tensor13x8x8 = tensor13x8x8.flip(1, 2)
+        tensor13x8x8 = tensor13x8x8.flip(1)
     board_planes = 13 * (num_past_states + 1)
     extra_planes = 7
     final_tensor = torch.zeros((board_planes + extra_planes, 8, 8), dtype=torch.float)
@@ -106,7 +73,7 @@ def board_to_tensor(
         final_tensor[board_planes + 3] = torch.ones((8, 8), dtype=torch.float)
     if us == chess.BLACK:
         final_tensor[board_planes + 4] = torch.ones((8, 8), dtype=torch.float)
-    final_tensor[board_planes + 5] = torch.ones((8, 8), dtype=torch.float) * last_board.halfmove_clock / 100.0
+    final_tensor[board_planes + 5] = torch.ones((8, 8), dtype=torch.float) * last_board.halfmove_clock / 99.0
     final_tensor[board_planes + 6] = torch.ones((8, 8), dtype=torch.float)
     return final_tensor
 
