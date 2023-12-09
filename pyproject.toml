@@ -12,7 +12,7 @@ description = "Custom Decision Transformer Modeling."
 license = "MIT"
 authors = [
     "Yoann Poupart <yoann.poupart@ens-lyon.org>",
-    "Sam Johnson"
+    "Sam Johnson <sejohnson2020@outlook.com>"
 ]
 
 [[tool.poetry.source]]

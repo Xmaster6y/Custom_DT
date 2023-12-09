@@ -8,7 +8,8 @@ import chess
 import pytest
 import torch
 
-from src.utils import leela_encodings
+from src.metric.stockfish import StockfishMetric
+from src.utils import leela_encodings, translate
 from src.utils.leela_constants import ACT_DIM, STATE_DIM
 
 
@@ -18,11 +19,29 @@ def simple_seq():
 
 
 @pytest.fixture(scope="module")
-def encoded_simple_seq(simple_seq):
+def stockfish_metric():
+    return StockfishMetric()
+
+
+@pytest.fixture(scope="module")
+def encoded_simple_seq(simple_seq, stockfish_metric):
+    def position_evaluator(board, us_them):
+        player = "white" if us_them[0] == chess.WHITE else "black"
+        return stockfish_metric.eval_board(board, player=player)
+
     return leela_encodings.encode_seq(
         simple_seq,
         board_to_tensor=leela_encodings.board_to_tensor,
         move_to_index=leela_encodings.encode_move,
+        position_evaluator=position_evaluator,
+    )
+
+
+@pytest.fixture(scope="module")
+def encoded_deprec_simple_seq(simple_seq):
+    return translate.encode_seq(
+        simple_seq,
+        board_to_tensor=translate.board_to_64tensor,
     )
 
 
@@ -66,7 +85,7 @@ class TestEncoding:
             assert planes[17] == 64
 
 
-class TestFormting:
+class TestFormatting:
     def test_encode_seq(self, encoded_simple_seq):
         """
         Test that encoding a sequence of moves is correct.
@@ -118,3 +137,79 @@ class TestFormting:
         assert (planes[:6, :12] == torch.tensor([8, 2, 2, 2, 1, 1, 8, 2, 2, 2, 1, 1])).all()
         assert (planes[:, 13:17] == torch.full((12, 4), 64.0)).all()
         assert (planes[:, 17] == torch.tensor([0, 64, 0, 64, 0, 64, 0, 64, 0, 64, 0, 64])).all()
+
+
+class TestRewardEquivalence:
+    """
+    Tests that the reward representation is the same for both the Leela encodings and the deprecated encoding
+    """
+
+    def test_reward_equivalence_one_player(
+        self, encoded_simple_seq, encoded_deprec_simple_seq, simple_seq, stockfish_metric
+    ):
+        """
+        Test that the reward representation is the same for both the Leela encodings
+            and the deprecated encoding for a single player game
+        """
+        generator = torch.Generator()
+        generator.manual_seed(42)
+        leela_inputs = leela_encodings.format_inputs(
+            encoded_simple_seq,
+            window_size=6,
+            one_player=True,
+            generator=generator,
+            device=torch.device("cpu"),
+            shaping_rewards=True,
+        )
+        deprec_inputs = translate.format_inputs(
+            encoded_deprec_simple_seq[0],
+            encoded_deprec_simple_seq[1],
+            encoded_deprec_simple_seq[2],
+            sequence=simple_seq,
+            act_dim=4672,
+            state_dim=64,
+            device=torch.device("cpu"),
+            window_size=11,
+            generator=generator,
+            return_dict=True,
+            one_player=True,
+            shaping_rewards=True,
+            stockfish_metric=stockfish_metric,
+        )
+        assert torch.all(leela_inputs["timesteps"] == deprec_inputs["timesteps"]).item()
+        assert torch.all(leela_inputs["returns_to_go"] == deprec_inputs["returns_to_go"]).item()
+
+    def test_reward_equivalence_two_player(
+        self, encoded_simple_seq, encoded_deprec_simple_seq, simple_seq, stockfish_metric
+    ):
+        """
+        Test that the reward representation is the same for both the Leela encodings
+            and the deprecated encoding for a two player game
+        """
+        generator = torch.Generator()
+        generator.manual_seed(42)
+        leela_inputs = leela_encodings.format_inputs(
+            encoded_simple_seq,
+            window_size=5,
+            one_player=False,
+            generator=generator,
+            device=torch.device("cpu"),
+            shaping_rewards=True,
+        )
+        deprec_inputs = translate.format_inputs(
+            encoded_deprec_simple_seq[0],
+            encoded_deprec_simple_seq[1],
+            encoded_deprec_simple_seq[2],
+            sequence=simple_seq,
+            act_dim=4672,
+            state_dim=64,
+            device=torch.device("cpu"),
+            window_size=11,
+            generator=generator,
+            return_dict=True,
+            one_player=False,
+            shaping_rewards=True,
+            stockfish_metric=stockfish_metric,
+        )
+        assert torch.all(leela_inputs["timesteps"] == deprec_inputs["timesteps"][0, :-1]).item()
+        assert torch.all(leela_inputs["returns_to_go"] == deprec_inputs["returns_to_go"][:, :-1]).item()
