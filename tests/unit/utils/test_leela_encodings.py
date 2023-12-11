@@ -8,7 +8,6 @@ import chess
 import pytest
 import torch
 
-from src.metric.stockfish import StockfishMetric
 from src.utils import leela_encodings
 from src.utils.leela_constants import ACT_DIM, STATE_DIM
 
@@ -31,24 +30,10 @@ def complex_seq():
 
 
 @pytest.fixture(scope="module")
-def stockfish_metric1():
-    yield StockfishMetric()
-
-
-@pytest.fixture(scope="module")
-def stockfish_metric2():
-    """
-    A second stockfish metric is needed because of difficulties deleting the first
-        metric in the testing environment
-    """
-    yield StockfishMetric()
-
-
-@pytest.fixture(scope="module")
-def encoded_simple_seq(simple_seq, stockfish_metric1):
+def encoded_simple_seq(simple_seq, stockfish_metric):
     def position_evaluator(board, us_them):
         player = "white" if us_them[0] else "black"
-        return stockfish_metric1.eval_board(board, player=player)
+        return stockfish_metric.eval_board(board, player=player)
 
     encoded_seq = leela_encodings.encode_seq(
         simple_seq,
@@ -56,15 +41,14 @@ def encoded_simple_seq(simple_seq, stockfish_metric1):
         move_to_index=leela_encodings.encode_move,
         position_evaluator=position_evaluator,
     )
-    del stockfish_metric1
     return encoded_seq
 
 
 @pytest.fixture(scope="module")
-def encoded_complex_seq(complex_seq, stockfish_metric2):
+def encoded_complex_seq(complex_seq, stockfish_metric):
     def position_evaluator(board, us_them):
         player = "white" if us_them[0] else "black"
-        return stockfish_metric2.eval_board(board, player=player)
+        return stockfish_metric.eval_board(board, player=player)
 
     encoded_seq = leela_encodings.encode_seq(
         complex_seq,
@@ -72,7 +56,6 @@ def encoded_complex_seq(complex_seq, stockfish_metric2):
         move_to_index=leela_encodings.encode_move,
         position_evaluator=position_evaluator,
     )
-    del stockfish_metric2
     return encoded_seq
 
 
@@ -175,7 +158,7 @@ class TestRewardRepresentation:
     Tests that the reward representation for Leela encodings is as expected.
     """
 
-    def test_reward_two_player_complex(self, encoded_complex_seq, complex_seq):
+    def test_reward_two_player_complex(self, encoded_complex_seq, complex_seq, stockfish_metric):
         """
         Test that the reward representation for the Leela encodings is as expected
             for a complex game sequence
@@ -190,7 +173,6 @@ class TestRewardRepresentation:
             device=torch.device("cpu"),
             shaping_rewards=True,
         )
-        sm = StockfishMetric()
         board = chess.Board()
 
         def eval_seq(board, sequence, player, stockfish_metric):
@@ -205,15 +187,14 @@ class TestRewardRepresentation:
                 evaluations.append(evaluation)
             return evaluations[:-1]
 
-        complex_eval = torch.tensor(eval_seq(board, complex_seq, player="both", stockfish_metric=sm))
-        del sm
+        complex_eval = torch.tensor(eval_seq(board, complex_seq, player="both", stockfish_metric=stockfish_metric))
 
         alternating = torch.ones(69)
         alternating[1::2] = -1
         two_player_game = alternating + complex_eval
-        assert torch.all(leela_inputs["returns_to_go"].squeeze() == two_player_game[:-1]).item()
+        assert torch.all(leela_inputs["returns_to_go"].squeeze() == two_player_game[1:]).item()
 
-    def test_reward_two_player_simple(self, encoded_simple_seq, simple_seq):
+    def test_reward_two_player_simple(self, encoded_simple_seq, simple_seq, stockfish_metric):
         """
         Test that the reward representation for the Leela encodings is as expected
             for a simple game sequence
@@ -228,7 +209,6 @@ class TestRewardRepresentation:
             device=torch.device("cpu"),
             shaping_rewards=True,
         )
-        sm = StockfishMetric()
         board = chess.Board()
 
         def eval_seq(board, sequence, player, stockfish_metric):
@@ -243,14 +223,13 @@ class TestRewardRepresentation:
                 evaluations.append(evaluation)
             return evaluations[:-1]
 
-        simple_eval = torch.tensor(eval_seq(board, simple_seq, player="both", stockfish_metric=sm))
-        del sm
+        simple_eval = torch.tensor(eval_seq(board, simple_seq, player="both", stockfish_metric=stockfish_metric))
 
         rtg = torch.ones(12) / 2
         two_player_game = rtg + simple_eval
         assert torch.all(leela_inputs["returns_to_go"].squeeze() == two_player_game).item()
 
-    def test_reward_one_player_complex(self, encoded_complex_seq, complex_seq):
+    def test_reward_one_player_complex(self, encoded_complex_seq, complex_seq, stockfish_metric):
         """
         Test that the reward representation for the Leela encodings is as expected
             for a complex game sequence for one player game
@@ -265,7 +244,6 @@ class TestRewardRepresentation:
             device=torch.device("cpu"),
             shaping_rewards=True,
         )
-        sm = StockfishMetric()
         board = chess.Board()
 
         def eval_seq(board, sequence, player, stockfish_metric):
@@ -280,8 +258,7 @@ class TestRewardRepresentation:
                 evaluations.append(evaluation)
             return evaluations[:-1]
 
-        complex_eval = torch.tensor(eval_seq(board, complex_seq, player="both", stockfish_metric=sm))
-        del sm
+        complex_eval = torch.tensor(eval_seq(board, complex_seq, player="both", stockfish_metric=stockfish_metric))
 
         alternating = torch.ones(69)
         alternating[1::2] = -1
@@ -289,7 +266,7 @@ class TestRewardRepresentation:
         one_player_game = two_player_game[::2]
         assert torch.all(leela_inputs["returns_to_go"].squeeze() == one_player_game[:-1]).item()
 
-    def test_reward_one_player_simple(self, encoded_simple_seq, simple_seq):
+    def test_reward_one_player_simple(self, encoded_simple_seq, simple_seq, stockfish_metric):
         """
         Test that the reward representation for the Leela encodings is as expected
             for a simple game sequence for one player game
@@ -304,7 +281,6 @@ class TestRewardRepresentation:
             device=torch.device("cpu"),
             shaping_rewards=True,
         )
-        sm = StockfishMetric()
         board = chess.Board()
 
         def eval_seq(board, sequence, player, stockfish_metric):
@@ -319,8 +295,7 @@ class TestRewardRepresentation:
                 evaluations.append(evaluation)
             return evaluations[:-1]
 
-        simple_eval = torch.tensor(eval_seq(board, simple_seq, player="both", stockfish_metric=sm))
-        del sm
+        simple_eval = torch.tensor(eval_seq(board, simple_seq, player="both", stockfish_metric=stockfish_metric))
 
         rtg = torch.ones(12) / 2
         two_player_game = rtg + simple_eval

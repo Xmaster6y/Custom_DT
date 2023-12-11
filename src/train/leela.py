@@ -36,6 +36,7 @@ parser.add_argument("--one-player", action=argparse.BooleanOptionalAction, defau
 parser.add_argument("--use-stockfish-eval", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--stockfish-eval-depth", type=int, default=6)
 parser.add_argument("--resume-from-checkpoint", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--checkpoint-path", type=str, default=None)
 parser.add_argument("--output-root", type=str, default="")
 
 args = parser.parse_args()
@@ -62,78 +63,91 @@ if args.use_stockfish_eval:
     stockfish_metric = StockfishMetric()
 
     def position_evaluator(board, us_them):
+        global stockfish_metric
         player = "white" if us_them[0] == chess.WHITE else "black"
         return stockfish_metric.eval_board(board, player=player, evaluation_depth=args.stockfish_eval_depth)
 
 else:
     position_evaluator = None
 
-eval_generator = torch.Generator()
-eval_generator.manual_seed(args.seed)
-eval_dataset = LeelaChessDataset(
-    file_name="data/chess_games_base/test_stockfish_5000.jsonl",
-    position_evaluator=position_evaluator,
-    window_size=args.window_size,
-    generator=eval_generator,
-    eval_mode=True,
-    one_player=args.one_player,
-)
-eval_dataset_len = len(eval_dataset)
+try:  # To be sure to close stockfish engine if an error occurs
+    eval_generator = torch.Generator()
+    eval_generator.manual_seed(args.seed)
+    eval_dataset = LeelaChessDataset(
+        file_name="data/chess_games_base/test_stockfish_5000.jsonl",
+        position_evaluator=position_evaluator,
+        window_size=args.window_size,
+        generator=eval_generator,
+        eval_mode=True,
+        one_player=args.one_player,
+    )
+    eval_dataset_len = len(eval_dataset)
 
-train_generator = torch.Generator()
-train_generator.manual_seed(args.seed)
-if args.debug:
-    train_dataset_file = "data/chess_games_base/test_stockfish_5000.jsonl"
-else:
-    train_dataset_file = "data/chess_games_base/train_stockfish_262k.jsonl"
-train_dataset = LeelaChessDataset(
-    file_name=train_dataset_file,
-    position_evaluator=position_evaluator,
-    window_size=args.window_size,
-    generator=train_generator,
-    eval_mode=False,
-    one_player=args.one_player,
-)
-train_dataset_len = len(train_dataset)
+    train_generator = torch.Generator()
+    train_generator.manual_seed(args.seed)
+    if args.debug:
+        train_dataset_file = "data/chess_games_base/test_stockfish_5000.jsonl"
+    else:
+        train_dataset_file = "data/chess_games_base/train_stockfish_262k.jsonl"
+    train_dataset = LeelaChessDataset(
+        file_name=train_dataset_file,
+        position_evaluator=position_evaluator,
+        window_size=args.window_size,
+        generator=train_generator,
+        eval_mode=False,
+        one_player=args.one_player,
+    )
+    train_dataset_len = len(train_dataset)
 
-conf = DecisionTransformerConfig(
-    state_dim=STATE_DIM,
-    act_dim=ACT_DIM,
-    n_layers=args.layers,
-    n_heads=args.heads,
-    hidden_size=64 * args.heads,
-)
-model = DecisionTransformerModel(conf)
-model.to(DEVICE)  # Not necessary
+    conf = DecisionTransformerConfig(
+        state_dim=STATE_DIM,
+        act_dim=ACT_DIM,
+        n_layers=args.layers,
+        n_heads=args.heads,
+        hidden_size=64 * args.heads,
+    )
+    model = DecisionTransformerModel(conf)
+    model.to(DEVICE)  # Not necessary
 
-trainer_args = TrainingArguments(
-    output_dir=OUTPUT_DIR,
-    logging_dir=LOGGING_DIR,
-    overwrite_output_dir=args.debug or args.overwrite,
-    logging_strategy="steps",
-    logging_steps=int(args.logging_steps_ratio * train_dataset_len / args.train_batch_size),
-    prediction_loss_only=False,
-    evaluation_strategy="steps",
-    eval_steps=int(args.eval_steps_ratio * train_dataset_len / args.train_batch_size),
-    save_strategy="steps",
-    save_steps=int(args.eval_steps_ratio * train_dataset_len / args.train_batch_size),
-    per_device_eval_batch_size=args.eval_batch_size,
-    per_device_train_batch_size=args.train_batch_size,
-    num_train_epochs=args.n_epochs,
-    gradient_accumulation_steps=args.gradient_accumulation_steps,
-    run_name="latest",
-    fp16=True,
-)
+    trainer_args = TrainingArguments(
+        output_dir=OUTPUT_DIR,
+        logging_dir=LOGGING_DIR,
+        overwrite_output_dir=args.debug or args.overwrite,
+        logging_strategy="steps",
+        logging_steps=int(args.logging_steps_ratio * train_dataset_len / args.train_batch_size),
+        prediction_loss_only=False,
+        evaluation_strategy="steps",
+        eval_steps=int(args.eval_steps_ratio * train_dataset_len / args.train_batch_size),
+        save_strategy="steps",
+        save_steps=int(args.eval_steps_ratio * train_dataset_len / args.train_batch_size),
+        per_device_eval_batch_size=args.eval_batch_size,
+        per_device_train_batch_size=args.train_batch_size,
+        num_train_epochs=args.n_epochs,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        run_name="latest",
+        fp16=True,
+    )
 
-trainer = DecisionTransformerTrainer(
-    model=model,
-    args=trainer_args,
-    train_dataset=train_dataset,
-    eval_dataset=eval_dataset,
-    compute_metrics=compute_metrics,
-)
-if args.training:
-    trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
-else:
-    evaluation = trainer.evaluate()
-    print(evaluation)
+    trainer = DecisionTransformerTrainer(
+        model=model,
+        args=trainer_args,
+        train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        compute_metrics=compute_metrics,
+    )
+
+    if args.training:
+        try:
+            if args.checkpoint_path is not None:
+                trainer.train(resume_from_checkpoint=args.checkpoint_path)
+            else:
+                trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
+        except ValueError:
+            trainer.train()
+    else:
+        evaluation = trainer.evaluate()
+        print(evaluation)
+finally:
+    if stockfish_metric is not None:
+        stockfish_metric.engine.quit()
+    print("Done!")
