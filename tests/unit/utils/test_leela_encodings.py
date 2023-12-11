@@ -29,11 +29,11 @@ def complex_seq():
             31. Qg3+ Kf5 32. Bd1 Qxd4 33. Qxh3+ Kg5 34. Qh5+ Kf4 35. Ne2#"""
 
 
-@pytest.fixture(scope="module")
-def encoded_simple_seq(simple_seq, stockfish_metric):
+@pytest.fixture(scope="function")
+def encoded_simple_seq(simple_seq, stockfish_metric_fix_compose):
     def position_evaluator(board, us_them):
         player = "white" if us_them[0] else "black"
-        return stockfish_metric.eval_board(board, player=player)
+        return stockfish_metric_fix_compose.eval_board(board, player=player)
 
     encoded_seq = leela_encodings.encode_seq(
         simple_seq,
@@ -44,11 +44,11 @@ def encoded_simple_seq(simple_seq, stockfish_metric):
     return encoded_seq
 
 
-@pytest.fixture(scope="module")
-def encoded_complex_seq(complex_seq, stockfish_metric):
+@pytest.fixture(scope="function")
+def encoded_complex_seq(complex_seq, stockfish_metric_fix_compose):
     def position_evaluator(board, us_them):
         player = "white" if us_them[0] else "black"
-        return stockfish_metric.eval_board(board, player=player)
+        return stockfish_metric_fix_compose.eval_board(board, player=player)
 
     encoded_seq = leela_encodings.encode_seq(
         complex_seq,
@@ -192,7 +192,7 @@ class TestRewardRepresentation:
         alternating = torch.ones(69)
         alternating[1::2] = -1
         two_player_game = alternating + complex_eval
-        assert torch.all(leela_inputs["returns_to_go"].squeeze() == two_player_game[1:]).item()
+        assert torch.all(leela_inputs["returns_to_go"].squeeze() == two_player_game[:-1]).item()
 
     def test_reward_two_player_simple(self, encoded_simple_seq, simple_seq, stockfish_metric):
         """
