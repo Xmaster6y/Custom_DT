@@ -136,7 +136,7 @@ def decode_move(move_index: int, board: chess.Board) -> chess.Move:
         to_square, from_square = divmod(move_index, 64)
         mv = chess.Move(from_square, to_square)
         piece = board.piece_at(from_square)
-        if piece is None:
+        if piece is None:  # from square is unoccupied
             return None
         to_rank = to_square // 8
         if piece.piece_type == chess.PAWN and to_rank in [0, 7]:

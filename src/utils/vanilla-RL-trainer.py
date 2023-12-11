@@ -44,10 +44,12 @@ def _step(tensordict):
         next_board_tensor = board_tensor
         reward_tensor = torch.tensor([10], dtype=torch.float32)
         done = torch.tensor([1], dtype=torch.bool)
+    # proposing a move with an actual piece, but not a legal move: should be punished less severely
     elif proposed_move not in list(board.legal_moves):
         next_board_tensor = board_tensor
         reward_tensor = torch.tensor([5], dtype=torch.float32)
         done = torch.tensor([1], dtype=torch.bool)
+    # proposes legal move
     else:
         board.push(proposed_move)
 
@@ -84,9 +86,7 @@ def _reset(self, tensordict):
 
     return TensorDict(
         {
-            "board": translate.board_to_72tensor(
-                chess.Board()
-            ).float(),  # dtype = float32 & shape = (72,)
+            "board": translate.board_to_72tensor(chess.Board()).float(),  # dtype = float32 & shape = (72,)
             "params": tensordict["params"],
             "done": torch.tensor([0], dtype=torch.bool),
         },
@@ -131,13 +131,15 @@ def _make_spec(self, td_params):
 
 
 def make_composite_from_td(td):
+    """
+    Custom funtion to convert a tensordict in a similar spec structure
+    of unbounded values.
+    """
     return CompositeSpec(
         {
             key: make_composite_from_td(tensor)
             if isinstance(tensor, TensorDictBase)
-            else UnboundedContinuousTensorSpec(
-                dtype=tensor.dtype, device=tensor.device, shape=tensor.shape
-            )
+            else UnboundedContinuousTensorSpec(dtype=tensor.dtype, device=tensor.device, shape=tensor.shape)
             for key, tensor in td.items()
         },
         shape=td.shape,
@@ -302,9 +304,7 @@ def train(lr, steps, temp):
         rollout, distros = one_game_rollout(temperature=temp)
         loss = [
             -distro.log_prob(action.argmax()) * traj_return
-            for distro, action, traj_return in zip(
-                distros, rollout["action"], rollout["next"]["reward"]
-            )
+            for distro, action, traj_return in zip(distros, rollout["action"], rollout["next"]["reward"])
         ]
         (min(loss)).backward()
         gn = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
