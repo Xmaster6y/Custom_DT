@@ -191,7 +191,7 @@ class TestRewardRepresentation:
 
         alternating = torch.ones(69)
         alternating[1::2] = -1
-        two_player_game = alternating + complex_eval
+        two_player_game = alternating + complex_eval  # Evaluating moves instead of positions
         assert torch.all(leela_inputs["returns_to_go"].squeeze() == two_player_game[:-1]).item()
 
     def test_reward_two_player_simple(self, encoded_simple_seq, simple_seq, stockfish_metric):
@@ -226,7 +226,7 @@ class TestRewardRepresentation:
         simple_eval = torch.tensor(eval_seq(board, simple_seq, player="both", stockfish_metric=stockfish_metric))
 
         rtg = torch.ones(12) / 2
-        two_player_game = rtg + simple_eval
+        two_player_game = rtg + simple_eval  # Evaluating moves instead of positions
         assert torch.all(leela_inputs["returns_to_go"].squeeze() == two_player_game).item()
 
     def test_reward_one_player_complex(self, encoded_complex_seq, complex_seq, stockfish_metric):
@@ -262,7 +262,7 @@ class TestRewardRepresentation:
 
         alternating = torch.ones(69)
         alternating[1::2] = -1
-        two_player_game = alternating + complex_eval
+        two_player_game = alternating + complex_eval  # Evaluating moves instead of positions
         one_player_game = two_player_game[::2]
         assert torch.all(leela_inputs["returns_to_go"].squeeze() == one_player_game[:-1]).item()
 
@@ -298,6 +298,6 @@ class TestRewardRepresentation:
         simple_eval = torch.tensor(eval_seq(board, simple_seq, player="both", stockfish_metric=stockfish_metric))
 
         rtg = torch.ones(12) / 2
-        two_player_game = rtg + simple_eval
+        two_player_game = rtg + simple_eval  # Evaluating moves instead of positions
         one_player_game = two_player_game[::2]
         assert torch.all(leela_inputs["returns_to_go"].squeeze() == one_player_game).item()
