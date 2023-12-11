@@ -151,9 +151,9 @@ def encode_seq(
     }
     us, them = chess.WHITE, chess.BLACK
     for alg_move in seq.split():
-        board_tensors[us].append(board_to_tensor(board, (us, them)))
         if alg_move.endswith("."):
             continue
+        board_tensors[us].append(board_to_tensor(board, (us, them)))
         if position_evaluator is not None:
             position_evaluations[us].append(position_evaluator(board, (us, them)))
         move = board.push_san(alg_move)

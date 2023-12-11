@@ -32,7 +32,7 @@ def complex_seq():
 
 @pytest.fixture(scope="module")
 def stockfish_metric1():
-    return StockfishMetric()
+    yield StockfishMetric()
 
 
 @pytest.fixture(scope="module")
@@ -41,7 +41,7 @@ def stockfish_metric2():
     A second stockfish metric is needed because of difficulties deleting the first
         metric in the testing environment
     """
-    return StockfishMetric()
+    yield StockfishMetric()
 
 
 @pytest.fixture(scope="module")
