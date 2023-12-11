@@ -9,8 +9,10 @@ import pytest
 import torch
 
 from src.metric.stockfish import StockfishMetric
-from src.utils import leela_encodings, translate
+from src.utils import leela_encodings
 from src.utils.leela_constants import ACT_DIM, STATE_DIM
+
+torch.set_printoptions(sci_mode=False)
 
 
 @pytest.fixture(scope="module")
@@ -19,30 +21,59 @@ def simple_seq():
 
 
 @pytest.fixture(scope="module")
-def stockfish_metric():
+def complex_seq():
+    return """1. e3 Nf6 2. Nf3 Nc6 3. Bb5 e5 4. d3 Na5 5. Nxe5 c6 6. Ba4 Qc7
+            7. Ng4 b5 8. Bb3 Be7 9. Bd2 h5 10. Nxf6+ Bxf6 11. Bc3 Qd8 12. O-O b4
+            13. Bd4 d5 14. Ba4 h4 15. Qf3 h3 16. g3 Bxd4 17. exd4 O-O 18. Qf4 f6
+            19. a3 b3 20. cxb3 Qb6 21. b4 Nb7 22. g4 Bd7 23. Nc3 Rad8 24. Rae1 a6
+            25. Re7 Rf7 26. Rfe1 Kf8 27. Rxf7+ Kxf7 28. g5 a5 29. g6+ Kxg6 30. Re7 axb4
+            31. Qg3+ Kf5 32. Bd1 Qxd4 33. Qxh3+ Kg5 34. Qh5+ Kf4 35. Ne2#"""
+
+
+@pytest.fixture(scope="module")
+def stockfish_metric1():
     return StockfishMetric()
 
 
 @pytest.fixture(scope="module")
-def encoded_simple_seq(simple_seq, stockfish_metric):
-    def position_evaluator(board, us_them):
-        player = "white" if us_them[0] == chess.WHITE else "black"
-        return stockfish_metric.eval_board(board, player=player)
+def stockfish_metric2():
+    """
+    A second stockfish metric is needed because of difficulties deleting the first
+        metric in the testing environment
+    """
+    return StockfishMetric()
 
-    return leela_encodings.encode_seq(
+
+@pytest.fixture(scope="module")
+def encoded_simple_seq(simple_seq, stockfish_metric1):
+    def position_evaluator(board, us_them):
+        player = "white" if us_them[0] else "black"
+        return stockfish_metric1.eval_board(board, player=player)
+
+    encoded_seq = leela_encodings.encode_seq(
         simple_seq,
         board_to_tensor=leela_encodings.board_to_tensor,
         move_to_index=leela_encodings.encode_move,
         position_evaluator=position_evaluator,
     )
+    del stockfish_metric1
+    return encoded_seq
 
 
 @pytest.fixture(scope="module")
-def encoded_deprec_simple_seq(simple_seq):
-    return translate.encode_seq(
-        simple_seq,
-        board_to_tensor=translate.board_to_64tensor,
+def encoded_complex_seq(complex_seq, stockfish_metric2):
+    def position_evaluator(board, us_them):
+        player = "white" if us_them[0] else "black"
+        return stockfish_metric2.eval_board(board, player=player)
+
+    encoded_seq = leela_encodings.encode_seq(
+        complex_seq,
+        board_to_tensor=leela_encodings.board_to_tensor,
+        move_to_index=leela_encodings.encode_move,
+        position_evaluator=position_evaluator,
     )
+    del stockfish_metric2
+    return encoded_seq
 
 
 class TestStability:
@@ -139,17 +170,129 @@ class TestFormatting:
         assert (planes[:, 17] == torch.tensor([0, 64, 0, 64, 0, 64, 0, 64, 0, 64, 0, 64])).all()
 
 
-class TestRewardEquivalence:
+class TestRewardRepresentation:
     """
-    Tests that the reward representation is the same for both the Leela encodings and the deprecated encoding
+    Tests that the reward representation for Leela encodings is as expected.
     """
 
-    def test_reward_equivalence_one_player(
-        self, encoded_simple_seq, encoded_deprec_simple_seq, simple_seq, stockfish_metric
-    ):
+    def test_reward_two_player_complex(self, encoded_complex_seq, complex_seq):
         """
-        Test that the reward representation is the same for both the Leela encodings
-            and the deprecated encoding for a single player game
+        Test that the reward representation for the Leela encodings is as expected
+            for a complex game sequence
+        """
+        generator = torch.Generator()
+        generator.manual_seed(42)
+        leela_inputs = leela_encodings.format_inputs(
+            encoded_complex_seq,
+            window_size=34,
+            one_player=False,
+            generator=generator,
+            device=torch.device("cpu"),
+            shaping_rewards=True,
+        )
+        sm = StockfishMetric()
+        board = chess.Board()
+
+        def eval_seq(board, sequence, player, stockfish_metric):
+            evaluations = []
+            board = chess.Board()
+            evaluations.append(stockfish_metric.eval_board(board, player))
+            for alg_move in sequence.split():
+                if alg_move.endswith("."):
+                    continue
+                board.push_san(alg_move)
+                evaluation = stockfish_metric.eval_board(board, player)
+                evaluations.append(evaluation)
+            return evaluations[:-1]
+
+        complex_eval = torch.tensor(eval_seq(board, complex_seq, player="both", stockfish_metric=sm))
+        del sm
+
+        alternating = torch.ones(69)
+        alternating[1::2] = -1
+        two_player_game = alternating + complex_eval
+        assert torch.all(leela_inputs["returns_to_go"].squeeze() == two_player_game[:-1]).item()
+
+    def test_reward_two_player_simple(self, encoded_simple_seq, simple_seq):
+        """
+        Test that the reward representation for the Leela encodings is as expected
+            for a simple game sequence
+        """
+        generator = torch.Generator()
+        generator.manual_seed(42)
+        leela_inputs = leela_encodings.format_inputs(
+            encoded_simple_seq,
+            window_size=6,
+            one_player=False,
+            generator=generator,
+            device=torch.device("cpu"),
+            shaping_rewards=True,
+        )
+        sm = StockfishMetric()
+        board = chess.Board()
+
+        def eval_seq(board, sequence, player, stockfish_metric):
+            evaluations = []
+            board = chess.Board()
+            evaluations.append(stockfish_metric.eval_board(board, player))
+            for alg_move in sequence.split():
+                if alg_move.endswith("."):
+                    continue
+                board.push_san(alg_move)
+                evaluation = stockfish_metric.eval_board(board, player)
+                evaluations.append(evaluation)
+            return evaluations[:-1]
+
+        simple_eval = torch.tensor(eval_seq(board, simple_seq, player="both", stockfish_metric=sm))
+        del sm
+
+        rtg = torch.ones(12) / 2
+        two_player_game = rtg + simple_eval
+        assert torch.all(leela_inputs["returns_to_go"].squeeze() == two_player_game).item()
+
+    def test_reward_one_player_complex(self, encoded_complex_seq, complex_seq):
+        """
+        Test that the reward representation for the Leela encodings is as expected
+            for a complex game sequence for one player game
+        """
+        generator = torch.Generator()
+        generator.manual_seed(42)
+        leela_inputs = leela_encodings.format_inputs(
+            encoded_complex_seq,
+            window_size=34,
+            one_player=True,
+            generator=generator,
+            device=torch.device("cpu"),
+            shaping_rewards=True,
+        )
+        sm = StockfishMetric()
+        board = chess.Board()
+
+        def eval_seq(board, sequence, player, stockfish_metric):
+            evaluations = []
+            board = chess.Board()
+            evaluations.append(stockfish_metric.eval_board(board, player))
+            for alg_move in sequence.split():
+                if alg_move.endswith("."):
+                    continue
+                board.push_san(alg_move)
+                evaluation = stockfish_metric.eval_board(board, player)
+                evaluations.append(evaluation)
+            return evaluations[:-1]
+
+        complex_eval = torch.tensor(eval_seq(board, complex_seq, player="both", stockfish_metric=sm))
+        del sm
+
+        alternating = torch.ones(69)
+        alternating[1::2] = -1
+        two_player_game = alternating + complex_eval
+        one_player_game = two_player_game[::2]
+        assert torch.all(leela_inputs["returns_to_go"].squeeze() == one_player_game[:-1]).item()
+
+    def test_reward_one_player_simple(self, encoded_simple_seq, simple_seq):
+        """
+        Test that the reward representation for the Leela encodings is as expected
+            for a simple game sequence for one player game
         """
         generator = torch.Generator()
         generator.manual_seed(42)
@@ -161,55 +304,25 @@ class TestRewardEquivalence:
             device=torch.device("cpu"),
             shaping_rewards=True,
         )
-        deprec_inputs = translate.format_inputs(
-            encoded_deprec_simple_seq[0],
-            encoded_deprec_simple_seq[1],
-            encoded_deprec_simple_seq[2],
-            sequence=simple_seq,
-            act_dim=4672,
-            state_dim=64,
-            device=torch.device("cpu"),
-            window_size=11,
-            generator=generator,
-            return_dict=True,
-            one_player=True,
-            shaping_rewards=True,
-            stockfish_metric=stockfish_metric,
-        )
-        assert torch.all(leela_inputs["timesteps"] == deprec_inputs["timesteps"]).item()
-        assert torch.all(leela_inputs["returns_to_go"] == deprec_inputs["returns_to_go"]).item()
+        sm = StockfishMetric()
+        board = chess.Board()
 
-    def test_reward_equivalence_two_player(
-        self, encoded_simple_seq, encoded_deprec_simple_seq, simple_seq, stockfish_metric
-    ):
-        """
-        Test that the reward representation is the same for both the Leela encodings
-            and the deprecated encoding for a two player game
-        """
-        generator = torch.Generator()
-        generator.manual_seed(42)
-        leela_inputs = leela_encodings.format_inputs(
-            encoded_simple_seq,
-            window_size=5,
-            one_player=False,
-            generator=generator,
-            device=torch.device("cpu"),
-            shaping_rewards=True,
-        )
-        deprec_inputs = translate.format_inputs(
-            encoded_deprec_simple_seq[0],
-            encoded_deprec_simple_seq[1],
-            encoded_deprec_simple_seq[2],
-            sequence=simple_seq,
-            act_dim=4672,
-            state_dim=64,
-            device=torch.device("cpu"),
-            window_size=11,
-            generator=generator,
-            return_dict=True,
-            one_player=False,
-            shaping_rewards=True,
-            stockfish_metric=stockfish_metric,
-        )
-        assert torch.all(leela_inputs["timesteps"] == deprec_inputs["timesteps"][0, :-1]).item()
-        assert torch.all(leela_inputs["returns_to_go"] == deprec_inputs["returns_to_go"][:, :-1]).item()
+        def eval_seq(board, sequence, player, stockfish_metric):
+            evaluations = []
+            board = chess.Board()
+            evaluations.append(stockfish_metric.eval_board(board, player))
+            for alg_move in sequence.split():
+                if alg_move.endswith("."):
+                    continue
+                board.push_san(alg_move)
+                evaluation = stockfish_metric.eval_board(board, player)
+                evaluations.append(evaluation)
+            return evaluations[:-1]
+
+        simple_eval = torch.tensor(eval_seq(board, simple_seq, player="both", stockfish_metric=sm))
+        del sm
+
+        rtg = torch.ones(12) / 2
+        two_player_game = rtg + simple_eval
+        one_player_game = two_player_game[::2]
+        assert torch.all(leela_inputs["returns_to_go"].squeeze() == one_player_game).item()
