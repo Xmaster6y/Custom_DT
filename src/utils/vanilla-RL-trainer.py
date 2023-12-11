@@ -44,31 +44,27 @@ def _step(tensordict):
         next_board_tensor = board_tensor
         reward_tensor = torch.tensor([10], dtype=torch.float32)
         done = torch.tensor([1], dtype=torch.bool)
-    # proposing a move with an actual piece, but not a legal move: should be punished less severely
     elif proposed_move not in list(board.legal_moves):
         next_board_tensor = board_tensor
         reward_tensor = torch.tensor([5], dtype=torch.float32)
         done = torch.tensor([1], dtype=torch.bool)
-    # proposes legal move
     else:
         board.push(proposed_move)
 
         if board.outcome() is not None:
             done = torch.tensor([1], dtype=torch.bool)
-            next_board_tensor = translate.board_to_72tensor(board.copy()).float()
         else:
             done = torch.tensor([0], dtype=torch.bool)
             next_move = engine.play(board, chess.engine.Limit(depth=env_search_depth)).move
             board.push(next_move)
-            next_board_tensor = translate.board_to_72tensor(board.copy()).float()
-
+        next_board_tensor = translate.board_to_72tensor(board.copy()).float()
         sf_eval_metric = StockfishMetric()
         reward_tensor = torch.tensor([1 - sf_eval_metric.eval_board(board, player="white")])
 
         if board.outcome() is not None:
             done = torch.tensor([1], dtype=torch.bool)
 
-    out = TensorDict(
+    return TensorDict(
         {
             "board": next_board_tensor,  # dtype = float32 & shape = (72,)
             "params": tensordict["params"],
@@ -77,7 +73,6 @@ def _step(tensordict):
         },
         tensordict.shape,
     )
-    return out
 
 
 def _reset(self, tensordict):
@@ -87,15 +82,16 @@ def _reset(self, tensordict):
         # parameters to get started.
         tensordict = self.gen_params(batch_size=self.batch_size)
 
-    out = TensorDict(
+    return TensorDict(
         {
-            "board": translate.board_to_72tensor(chess.Board()).float(),  # dtype = float32 & shape = (72,)
+            "board": translate.board_to_72tensor(
+                chess.Board()
+            ).float(),  # dtype = float32 & shape = (72,)
             "params": tensordict["params"],
             "done": torch.tensor([0], dtype=torch.bool),
         },
         batch_size=tensordict.shape,
     )
-    return out
 
 
 def _make_spec(self, td_params):
@@ -135,18 +131,17 @@ def _make_spec(self, td_params):
 
 
 def make_composite_from_td(td):
-    # custom funtion to convert a tensordict in a similar spec structure
-    # of unbounded values.
-    composite = CompositeSpec(
+    return CompositeSpec(
         {
             key: make_composite_from_td(tensor)
             if isinstance(tensor, TensorDictBase)
-            else UnboundedContinuousTensorSpec(dtype=tensor.dtype, device=tensor.device, shape=tensor.shape)
+            else UnboundedContinuousTensorSpec(
+                dtype=tensor.dtype, device=tensor.device, shape=tensor.shape
+            )
             for key, tensor in td.items()
         },
         shape=td.shape,
     )
-    return composite
 
 
 def _set_seed(self, seed: Optional[int]):
@@ -305,9 +300,12 @@ def train(lr, steps, temp):
 
     for i in pbar:
         rollout, distros = one_game_rollout(temperature=temp)
-        loss = []
-        for distro, action, traj_return in zip(distros, rollout["action"], rollout["next"]["reward"]):
-            loss.append(-distro.log_prob(action.argmax()) * traj_return)
+        loss = [
+            -distro.log_prob(action.argmax()) * traj_return
+            for distro, action, traj_return in zip(
+                distros, rollout["action"], rollout["next"]["reward"]
+            )
+        ]
         (min(loss)).backward()
         gn = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optim.step()

@@ -136,14 +136,12 @@ def decode_move(move_index: int, board: chess.Board) -> chess.Move:
         to_square, from_square = divmod(move_index, 64)
         mv = chess.Move(from_square, to_square)
         piece = board.piece_at(from_square)
-        # from square is unoccupied
         if piece is None:
             return None
-        else:
-            to_rank = to_square // 8
-            if piece.piece_type == chess.PAWN and to_rank in [0, 7]:
-                mv.promotion = chess.QUEEN
-            return mv
+        to_rank = to_square // 8
+        if piece.piece_type == chess.PAWN and to_rank in [0, 7]:
+            mv.promotion = chess.QUEEN
+        return mv
 
     else:
         extra_index = move_index - 4096
@@ -230,10 +228,14 @@ def board_to_72tensor(board: chess.Board):
     ordinal_board.append(board.has_kingside_castling_rights(chess.WHITE))
     ordinal_board.append(board.has_queenside_castling_rights(chess.WHITE))
     ordinal_board.append(board.has_kingside_castling_rights(chess.BLACK))
-    ordinal_board.append(board.has_queenside_castling_rights(chess.BLACK))
-    ordinal_board.append(board.ep_square if board.ep_square is not None else 0)
-    ordinal_board.append(board.halfmove_clock)
-    ordinal_board.append(board.fullmove_number)
+    ordinal_board.extend(
+        (
+            board.has_queenside_castling_rights(chess.BLACK),
+            board.ep_square if board.ep_square is not None else 0,
+            board.halfmove_clock,
+            board.fullmove_number,
+        )
+    )
     return torch.tensor(ordinal_board, dtype=torch.int16)
 
 
@@ -267,12 +269,9 @@ def complete_tensor_to_fen(board_tensor: torch.Tensor):
         fen += "q"
     if info[1] + info[2] + info[3] + info[4] == 0:
         fen += "-"
-    if info[5] != 0:
-        fen += " " + chess.square_name(info[5])
-    else:
-        fen += " -"
-    fen += " " + str(info[6].item())
-    fen += " " + str(info[7].item())
+    fen += f" {chess.square_name(info[5])}" if info[5] != 0 else " -"
+    fen += f" {str(info[6].item())}"
+    fen += f" {str(info[7].item())}"
     return fen
 
 
