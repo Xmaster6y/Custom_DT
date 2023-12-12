@@ -15,12 +15,7 @@ def pretty_print(board: chess.Board) -> str:
     Pretty print a board.
     """
     repr = str(board)
-    repr = (
-        "\n".join(
-            [f"[{8-i}] {line}" for i, line in enumerate(repr.split("\n"))]
-        )
-        + "\n    a b c d e f g h"
-    )
+    repr = "\n".join([f"[{8-i}] {line}" for i, line in enumerate(repr.split("\n"))]) + "\n    a b c d e f g h"
     print(repr)
 
 
