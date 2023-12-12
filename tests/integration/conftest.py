@@ -10,7 +10,6 @@ import pytest
 import torch
 
 import src.utils.translate as translate
-from src.metric.stockfish import StockfishMetric
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
 from src.utils.dataset import OnePlayerChessDataset, TwoPlayersChessDataset
 
@@ -103,13 +102,6 @@ def op_64x12_chess_dataset():
         generator=generator,
         return_ids=True,
     )
-
-
-@pytest.fixture(scope="session")
-def stockfish_metric():
-    metric = StockfishMetric(default_platform=DETECT_PLATFORM)
-    yield metric
-    del metric
 
 
 @pytest.fixture(scope="module")

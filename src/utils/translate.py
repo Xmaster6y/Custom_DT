@@ -3,6 +3,7 @@ Encoding functions for converting between different representations of the board
 """
 
 import re
+import warnings
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import chess
@@ -18,6 +19,7 @@ def encode_seq(
     """
     Converts a sequence of moves in algebraic notation to a sequence of move indices.
     """
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
     board = chess.Board()
     move_indices = []
     board_tensors = None if board_to_tensor is None else [board_to_tensor(board)]
@@ -38,15 +40,12 @@ def encode_seq(
         board_tensors.pop()  # Remove the last board tensor, since it is not needed
 
     outcome = board.outcome()
-    if outcome is None:
-        end_rewards = (0.0, 0.0)
+    if outcome is None or outcome.winner not in [chess.WHITE, chess.BLACK]:
+        end_rewards = (0.5, 0.5)
     elif outcome.winner == chess.WHITE:
         end_rewards = (1.0, -1.0)
-    elif outcome.winner == chess.BLACK:
-        end_rewards = (-1.0, 1.0)
     else:
-        end_rewards = (0.5, 0.5)
-
+        end_rewards = (-1.0, 1.0)
     return move_indices, board_tensors, end_rewards
 
 
@@ -132,6 +131,7 @@ def decode_move(move_index: int, board: chess.Board) -> chess.Move:
     """
     Converts a move index to a chess.Move object.
     """
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
     if move_index < 4096:
         to_square, from_square = divmod(move_index, 64)
         mv = chess.Move(from_square, to_square)
@@ -158,6 +158,7 @@ def decode_move(move_index: int, board: chess.Board) -> chess.Move:
 
 
 def piece_to_index(piece: str):
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
     return "kqrbnp0PNBRQK".index(piece) - 6
 
 
@@ -169,13 +170,14 @@ def board_to_64tensor(board: chess.Board):
     """
     Converts a chess.Board object to a 64 tensor.
     """
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
     fen_rep = board.fen().split(" ")[0]
     fen_rep = re.sub(r"(\d)", lambda m: "0" * int(m.group(1)), fen_rep)
     rows = fen_rep.split("/")
     rev_rows = rows[::-1]
     ordered_fen = "".join(rev_rows)
 
-    return torch.tensor(tuple(map(piece_to_index, ordered_fen)), dtype=torch.int8)
+    return torch.tensor(tuple(map(piece_to_index, ordered_fen)), dtype=torch.float)
 
 
 def board_to_64x12tensor(board: chess.Board):
@@ -183,8 +185,9 @@ def board_to_64x12tensor(board: chess.Board):
     Converts a chess.Board object to a 64x12 tensor.
     Order of pieces: kqrbnpPNBRQK
     """
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
     board_64tensor = board_to_64tensor(board)
-    board_64x12tensor = torch.zeros(64, 12, dtype=torch.int8)
+    board_64x12tensor = torch.zeros(64, 12, dtype=torch.float)
     for piece_index in range(1, 7):
         board_64x12tensor[:, piece_index + 5] = board_64tensor == piece_index
         board_64x12tensor[:, 6 - piece_index] = board_64tensor == -piece_index
@@ -196,6 +199,7 @@ def board_to_68tensor(board: chess.Board):
     Converts a chess.Board object to a 68 tensor.
     64 squares + 4 castling rights
     """
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
     fen_rep = board.fen().split(" ")[0]
     fen_rep = re.sub(r"(\d)", lambda m: "0" * int(m.group(1)), fen_rep)
     rows = fen_rep.split("/")
@@ -236,7 +240,7 @@ def board_to_72tensor(board: chess.Board):
             board.fullmove_number,
         )
     )
-    return torch.tensor(ordinal_board, dtype=torch.int16)
+    return torch.tensor(ordinal_board, dtype=torch.float)
 
 
 def complete_tensor_to_fen(board_tensor: torch.Tensor):
@@ -253,7 +257,7 @@ def complete_tensor_to_fen(board_tensor: torch.Tensor):
                 if empty > 0:
                     fen += str(empty)
                     empty = 0
-                fen += index_to_piece(square)
+                fen += index_to_piece(int(square))
         if empty > 0:
             fen += str(empty)
         if row_idx < 7:
@@ -270,8 +274,8 @@ def complete_tensor_to_fen(board_tensor: torch.Tensor):
     if info[1] + info[2] + info[3] + info[4] == 0:
         fen += "-"
     fen += f" {chess.square_name(info[5])}" if info[5] != 0 else " -"
-    fen += f" {str(info[6].item())}"
-    fen += f" {str(info[7].item())}"
+    fen += f" {int(info[6])}"
+    fen += f" {int(info[7])}"
     return fen
 
 
@@ -280,8 +284,9 @@ def board_to_772tensor(board: chess.Board):
     Converts a chess.Board object to a 772 tensor.
     Order of pieces: kqrbnpPNBRQK
     """
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
     board_64x12tensor = board_to_64x12tensor(board)
-    board_772tensor = torch.zeros(772, dtype=torch.int8)
+    board_772tensor = torch.zeros(772, dtype=torch.float)
     board_772tensor[:768] = board_64x12tensor.flatten()
     board_772tensor[768] = board.has_kingside_castling_rights(chess.WHITE)
     board_772tensor[769] = board.has_queenside_castling_rights(chess.WHITE)

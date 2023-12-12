@@ -9,8 +9,8 @@ import jsonlines
 import torch
 from torch.utils.data import Dataset
 
-import src.utils.translate as translate
 from src.metric.stockfish import StockfishMetric
+from src.utils import leela_encodings, translate
 
 
 class TwoPlayersChessDataset(Dataset):
@@ -129,4 +129,50 @@ class OnePlayerChessDataset(Dataset):
                 input_dict[key] = input_dict[key].squeeze(0)  # Remove batch dim
         if self.return_ids:
             input_dict["gameid"] = self.games[idx]["gameid"]
+        return input_dict
+
+
+class LeelaChessDataset(Dataset):
+    def __init__(
+        self,
+        file_name: str,
+        window_size: int,
+        generator: torch.Generator,
+        eval_mode: bool = False,
+        position_evaluator: Optional[Callable[[chess.Board], float]] = None,
+        one_player: bool = False,
+    ):
+        self.games = []  # Can be heavy on memory, but good enough for now
+        with jsonlines.open(file_name) as reader:
+            self.games.extend(iter(reader))
+        self.device = torch.device("cpu")  # Load full dataset on cpu
+        self.window_size = window_size
+        self.generator = generator
+        self.eval_mode = eval_mode
+        self.position_evaluator = position_evaluator
+        self.one_player = one_player
+
+    def __len__(self):
+        return len(self.games)
+
+    def __getitem__(self, idx):
+        encoded_seq = leela_encodings.encode_seq(
+            seq=self.games[idx]["moves"],
+            board_to_tensor=leela_encodings.board_to_tensor,
+            move_to_index=leela_encodings.encode_move,
+            return_last_board=False,
+            position_evaluator=self.position_evaluator,
+        )
+        input_dict = leela_encodings.format_inputs(
+            encoded_seq=encoded_seq,
+            device=self.device,
+            window_size=self.window_size,
+            generator=self.generator,
+            return_labels=self.eval_mode,
+            one_player=self.one_player,
+            shaping_rewards=self.position_evaluator is not None,
+        )
+        for key in input_dict:
+            if isinstance(input_dict[key], torch.Tensor):
+                input_dict[key] = input_dict[key].squeeze(0)  # Remove batch dim
         return input_dict

@@ -11,31 +11,32 @@ from src.models.decision_transformer import DecisionTransformerConfig, DecisionT
 from src.utils.dataset import TwoPlayersChessDataset
 from src.utils.trainer import DecisionTransformerTrainer, compute_metrics
 
-parser = argparse.ArgumentParser("train_induction")
+parser = argparse.ArgumentParser("train")
 # Meta
-parser.add_argument("--debug", type=int, default=True)
-parser.add_argument("--training", type=int, default=False)
+parser.add_argument("--debug", action=argparse.BooleanOptionalAction, default=True)
+parser.add_argument("--training", action=argparse.BooleanOptionalAction, default=False)
 # Config
-parser.add_argument("--state_dim", type=int, default=64)
-parser.add_argument("--act_dim", type=int, default=4672)
-parser.add_argument("--window_size", type=int, default=10)
+parser.add_argument("--state-dim", type=int, default=64)
+parser.add_argument("--act-dim", type=int, default=4672)
+parser.add_argument("--window-size", type=int, default=10)
 parser.add_argument("--seed", type=int, default=42)
 # Training
 parser.add_argument("--name", type=str, default=None)
-parser.add_argument("--overwrite", type=int, default=False)
-parser.add_argument("--n_epochs", type=int, default=1)
-parser.add_argument("--logging_steps_ratio", type=float, default=0.01)
-parser.add_argument("--eval_steps_ratio", type=float, default=0.1)
-parser.add_argument("--train_batch_size", type=int, default=50)
-parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
-parser.add_argument("--eval_batch_size", type=int, default=500)
+parser.add_argument("--overwrite", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--n-epochs", type=int, default=1)
+parser.add_argument("--logging-steps-ratio", type=float, default=0.01)
+parser.add_argument("--eval-steps-ratio", type=float, default=0.1)
+parser.add_argument("--train-batch-size", type=int, default=50)
+parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
+parser.add_argument("--eval-batch-size", type=int, default=500)
 parser.add_argument("--lr", type=float, default=1e-5)
+parser.add_argument("--resume-from-checkpoint", action=argparse.BooleanOptionalAction, default=False)
 
 args = parser.parse_args()
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if args.name is None:
-    NAME = f"dt_{args.state_dim}_{args.window_size}_{args.n_epochs}_{args.lr}"
+    NAME = f"dt_{args.state_dim}_{args.window_size}_{args.train_batch_size}_{args.lr}"
 else:
     NAME = args.name
 if args.debug:
@@ -110,7 +111,7 @@ trainer = DecisionTransformerTrainer(
     compute_metrics=compute_metrics,
 )
 if args.training:
-    trainer.train()
+    trainer.train(resume_from_checkpoint=args.resume_from_checkpoint)
 else:
     evaluation = trainer.evaluate()
     print(evaluation)

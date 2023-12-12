@@ -36,9 +36,6 @@ class StockfishMetric:
         stockfish_root = list(pathlib.Path("stockfish-source/stockfish/").glob(exec_re))[0]
         self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_root)
 
-    def __del__(self):
-        self.engine.quit()
-
     def _validate_params(self, parameter_name, input, expected_type, permitted_values):
         """
         This function will validate the type of the parameter and whether the value is in the permitted values list
@@ -94,7 +91,7 @@ class StockfishMetric:
         """
         # input validation
         self._validate_params("player", player, str, ["white", "black", "both"])
-        self._validate_params("evaluation_depth", evaluation_depth, int, list(range(4, 13)))
+        self._validate_params("evaluation_depth", evaluation_depth, int, list(range(1, 13)))
         ########################################
         info = self.engine.analyse(board, chess.engine.Limit(depth=evaluation_depth))
         if player == "white" or (
@@ -130,7 +127,7 @@ class StockfishMetric:
         # input validation
         self._validate_params("sequence", sequence, str, None)
         self._validate_params("player", player, str, ["white", "black", "both"])
-        self._validate_params("evaluation_depth", evaluation_depth, int, list(range(4, 13)))
+        self._validate_params("evaluation_depth", evaluation_depth, int, list(range(1, 13)))
         ########################################
 
         evaluations = []
