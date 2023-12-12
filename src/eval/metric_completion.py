@@ -60,6 +60,7 @@ class StockfishEvalTest:
             "return_ids": True,
             "eval_mode": True,
             "shaping_rewards": self.shaping_rewards,
+            "stockfish_metric": self.stockfish_metric,
         }
         if self.one_player:
             eval_dataset = OnePlayerChessDataset(**data_config)
@@ -81,6 +82,9 @@ class StockfishEvalTest:
                 timesteps=game["timesteps"],
                 return_dict=False,
             )
+
+    def __del__(self):
+        del self.stockfish_metric
 
 
 if __name__ == "__main__":
@@ -109,3 +113,4 @@ if __name__ == "__main__":
             device=DEVICE,
         )
         CT.run_test()
+        del CT

@@ -2,7 +2,6 @@
 Module implementing the Stockfish metric class.
 """
 
-import os
 import pathlib
 import sys
 from typing import Tuple, Union
@@ -15,8 +14,6 @@ __ALL__ = ["stockfish_eval_board", "stockfish_eval_sequence"]
 
 class StockfishMetric:
     def __init__(self, default_platform: str = "auto"):
-        cwd = os.getcwd()
-        sys.path.append(cwd)
         if default_platform == "auto":
             if sys.platform in ["linux"]:
                 platform = "linux"
@@ -36,11 +33,8 @@ class StockfishMetric:
         else:
             raise ValueError(f"Unknown platform {platform}")
 
-        stockfish_root = list(pathlib.Path(f"{cwd}/stockfish-source/stockfish/").glob(exec_re))[0]
+        stockfish_root = list(pathlib.Path("stockfish-source/stockfish/").glob(exec_re))[0]
         self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_root)
-
-    def __del__(self):
-        self.engine.quit()
 
     def _validate_params(self, parameter_name, input, expected_type, permitted_values):
         """
@@ -97,7 +91,7 @@ class StockfishMetric:
         """
         # input validation
         self._validate_params("player", player, str, ["white", "black", "both"])
-        self._validate_params("evaluation_depth", evaluation_depth, int, list(range(4, 13)))
+        self._validate_params("evaluation_depth", evaluation_depth, int, list(range(1, 13)))
         ########################################
         info = self.engine.analyse(board, chess.engine.Limit(depth=evaluation_depth))
         if player == "white" or (
@@ -133,7 +127,7 @@ class StockfishMetric:
         # input validation
         self._validate_params("sequence", sequence, str, None)
         self._validate_params("player", player, str, ["white", "black", "both"])
-        self._validate_params("evaluation_depth", evaluation_depth, int, list(range(4, 13)))
+        self._validate_params("evaluation_depth", evaluation_depth, int, list(range(1, 13)))
         ########################################
 
         evaluations = []

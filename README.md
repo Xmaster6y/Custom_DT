@@ -51,6 +51,10 @@ See the [data](./data/) folder.
 
 See the [weights](./weights/) folder.
 
+## Logs
+
+See the [logging](./logging/) folder.
+
 ## To Use Stockfish
 
 1. Download the stockfish source code from this [link](https://stockfishchess.org/download/) and save the zip file in the top level of this repository
