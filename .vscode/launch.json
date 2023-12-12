@@ -1,10 +1,17 @@
 {
     "configurations": [
         {
-            "name": "Completion",
+            "name": "Model Completion",
             "type": "python",
             "request": "launch",
-            "module": "src.eval.completion",
+            "module": "src.eval.model_completion",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Metric Completion",
+            "type": "python",
+            "request": "launch",
+            "module": "src.eval.metric_completion",
             "console": "integratedTerminal"
         },
         {
@@ -26,6 +33,21 @@
             "type": "python",
             "request": "launch",
             "module": "src.train.window_autoreg",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Leela",
+            "type": "python",
+            "request": "launch",
+            "module": "src.train.leela",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Leela (Stockfish Eval)",
+            "type": "python",
+            "request": "launch",
+            "module": "src.train.leela",
+            "args": ["--stockfish-eval-depth=1", "--layers=2", "--use-stockfish-eval"],
             "console": "integratedTerminal"
         },
         {

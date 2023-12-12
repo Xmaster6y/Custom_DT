@@ -28,10 +28,8 @@ def encode_seq(
     """
     Converts a sequence of moves in algebraic notation to a sequence of move indices.
     """
-    if board is None:
-        board = chess.Board()
-    if isinstance(move_seq, str):
-        move_seq = [s for s in move_seq.split() if not s.endswith(".")]
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
+    board = chess.Board()
     move_indices = []
     board_tensors = None if board_to_tensor is None else [board_to_tensor(board)]
     for alg_move in move_seq:
@@ -47,15 +45,12 @@ def encode_seq(
         board_tensors.pop()  # Remove the last board tensor, since it is not needed
 
     outcome = board.outcome()
-    if outcome is None:
-        end_rewards = (0.0, 0.0)
+    if outcome is None or outcome.winner not in [chess.WHITE, chess.BLACK]:
+        end_rewards = (0.5, 0.5)
     elif outcome.winner == chess.WHITE:
         end_rewards = (1.0, -1.0)
-    elif outcome.winner == chess.BLACK:
-        end_rewards = (-1.0, 1.0)
     else:
-        end_rewards = (0.5, 0.5)
-
+        end_rewards = (-1.0, 1.0)
     return move_indices, board_tensors, end_rewards
 
 
@@ -141,13 +136,20 @@ def format_inputs(
     return input_dict
 
 
-def decode_move(move_index: int) -> chess.Move:
+def decode_move(move_index: int, board: chess.Board) -> chess.Move:
     """
     Converts a move index to a chess.Move object.
     """
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
     if move_index < 4096:
         to_square, from_square = divmod(move_index, 64)
-        return chess.Move(from_square, to_square)
+        mv = chess.Move(from_square, to_square)
+        piece = board.piece_at(from_square)
+        to_rank = to_square // 8
+        if piece.piece_type == chess.PAWN and to_rank in [0, 7]:
+            mv.promotion = chess.QUEEN
+        return mv
+
     else:
         extra_index = move_index - 4096
         promotion = extra_index % 3 + 2
@@ -163,6 +165,7 @@ def decode_move(move_index: int) -> chess.Move:
 
 
 def piece_to_index(piece: str):
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
     return "kqrbnp0PNBRQK".index(piece) - 6
 
 
@@ -170,13 +173,14 @@ def board_to_64tensor(board: chess.Board):
     """
     Converts a chess.Board object to a 64 tensor.
     """
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
     fen_rep = board.fen().split(" ")[0]
     fen_rep = re.sub(r"(\d)", lambda m: "0" * int(m.group(1)), fen_rep)
     rows = fen_rep.split("/")
     rev_rows = rows[::-1]
     ordered_fen = "".join(rev_rows)
 
-    return torch.tensor(tuple(map(piece_to_index, ordered_fen)), dtype=torch.int8)
+    return torch.tensor(tuple(map(piece_to_index, ordered_fen)), dtype=torch.float)
 
 
 def board_to_64x12tensor(board: chess.Board):
@@ -184,12 +188,48 @@ def board_to_64x12tensor(board: chess.Board):
     Converts a chess.Board object to a 64x12 tensor.
     Order of pieces: kqrbnpPNBRQK
     """
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
     board_64tensor = board_to_64tensor(board)
-    board_64x12tensor = torch.zeros(64, 12, dtype=torch.int8)
+    board_64x12tensor = torch.zeros(64, 12, dtype=torch.float)
     for piece_index in range(1, 7):
         board_64x12tensor[:, piece_index + 5] = board_64tensor == piece_index
         board_64x12tensor[:, 6 - piece_index] = board_64tensor == -piece_index
     return board_64x12tensor.flatten()
+
+
+def board_to_68tensor(board: chess.Board):
+    """
+    Converts a chess.Board object to a 68 tensor.
+    64 squares + 4 castling rights
+    """
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
+    fen_rep = board.fen().split(" ")[0]
+    fen_rep = re.sub(r"(\d)", lambda m: "0" * int(m.group(1)), fen_rep)
+    rows = fen_rep.split("/")
+    rev_rows = rows[::-1]
+    ordered_fen = "".join(rev_rows)
+    ordinal_board = list(map(piece_to_index, ordered_fen))
+    ordinal_board.append(board.has_kingside_castling_rights(chess.WHITE))
+    ordinal_board.append(board.has_queenside_castling_rights(chess.WHITE))
+    ordinal_board.append(board.has_kingside_castling_rights(chess.BLACK))
+    ordinal_board.append(board.has_queenside_castling_rights(chess.BLACK))
+    return torch.tensor(ordinal_board, dtype=torch.float)
+
+
+def board_to_772tensor(board: chess.Board):
+    """
+    Converts a chess.Board object to a 772 tensor.
+    Order of pieces: kqrbnpPNBRQK
+    """
+    warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
+    board_64x12tensor = board_to_64x12tensor(board)
+    board_772tensor = torch.zeros(772, dtype=torch.float)
+    board_772tensor[:768] = board_64x12tensor.flatten()
+    board_772tensor[768] = board.has_kingside_castling_rights(chess.WHITE)
+    board_772tensor[769] = board.has_queenside_castling_rights(chess.WHITE)
+    board_772tensor[770] = board.has_kingside_castling_rights(chess.BLACK)
+    board_772tensor[771] = board.has_queenside_castling_rights(chess.BLACK)
+    return board_772tensor
 
 
 if __name__ == "__main__":

@@ -34,7 +34,7 @@ jobs:
       run: |
         mkdir -p stockfish-source/stockfish
         curl -L -o "stockfish-source/stockfish/stockfish_src" "https://drive.google.com/uc?export=download&id=${STOCKFISH_GDRIVE_ID}"
-        chmod +x stockfish-source/stockfish/stockfish_src
+        chmod 777 stockfish-source/stockfish/stockfish_src
     - name: Run tests
       run: |
         poetry run make tests
