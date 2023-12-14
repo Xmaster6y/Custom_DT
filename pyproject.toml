@@ -42,3 +42,9 @@ optional = true
 pre-commit = "*"
 pytest = "*"
 pytest-cov = "*"
+
+[tool.poetry.group.demo]
+optional = true
+
+[tool.poetry.group.demo.dependencies]
+gradio = "^4.8.0"

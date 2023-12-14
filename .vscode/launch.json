@@ -15,6 +15,13 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Matchmaking",
+            "type": "python",
+            "request": "launch",
+            "module": "src.eval.matchmaking",
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Translate",
             "type": "python",
             "request": "launch",
@@ -41,6 +48,14 @@
             "request": "launch",
             "module": "src.train.leela",
             "args": ["--stockfish-eval-depth=1", "--layers=2", "--use-stockfish-eval"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Leela Matchmaking",
+            "type": "python",
+            "request": "launch",
+            "module": "src.eval.matchmaking",
+            "args": ["--checkpoint=weights/leela_sf_1pL6_H4_20_2000_1e-05/checkpoint-273"],
             "console": "integratedTerminal"
         },
         {
