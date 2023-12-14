@@ -51,6 +51,14 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "Leela Matchmaking",
+            "type": "python",
+            "request": "launch",
+            "module": "src.eval.matchmaking",
+            "args": ["--checkpoint=weights/leela_sf_1pL6_H4_20_2000_1e-05/checkpoint-273"],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Tests",
             "type": "python",
             "request": "launch",
