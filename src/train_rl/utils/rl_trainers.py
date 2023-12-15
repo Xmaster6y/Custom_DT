@@ -155,14 +155,11 @@ class DecisionTransformerREINFORCETrainer:
         plt.plot(rolling_av_loss[:: n_points + 1])
         plt.title("rolling av loss")
         plt.xlabel("iteration")
-        plt.savefig(self.cfg.figures_dir + ".png")
+        plt.savefig(f"{self.cfg.figures_dir}.png")
 
     def log(self, logs):
-        if self.cfg.overwrite_output_dir:
-            action = "w"
-        else:
-            action = "a"
-        with open(self.cfg.logging_dir + ".txt", action) as f:
+        action = "w" if self.cfg.overwrite_output_dir else "a"
+        with open(f"{self.cfg.logging_dir}.txt", action) as f:
             f.write(f"run name: {self.cfg.run_name}\n")
             f.write(f"lr: {self.cfg.lr}\n")
             f.write(f"number of epochs: {self.cfg.num_train_epochs}\n")
