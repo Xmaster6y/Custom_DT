@@ -244,6 +244,7 @@ def board_to_72tensor(board: chess.Board):
 
 
 def complete_tensor_to_fen(board_tensor: torch.Tensor):
+    board_tensor = board_tensor.to(dtype=torch.int8)
     rows = board_tensor[:64].reshape(8, 8)
     info = board_tensor[64:]
     rows = rows.flip(0)
