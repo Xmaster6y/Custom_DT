@@ -63,7 +63,9 @@ class DecisionTransformerREINFORCETrainer:
         optim = torch.optim.AdamW(self.model.parameters(), lr=self.cfg.lr)
 
         pbar = tqdm.tqdm(range(self.cfg.num_train_epochs))
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, self.cfg.num_train_epochs)
+
+        if self.cfg.lr_scheduler:
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, self.cfg.num_train_epochs)
 
         logging_steps = int(1 / self.cfg.logging_steps_ratio)
         logs = {"loss": [], "rolling_av_loss": []}
@@ -82,7 +84,8 @@ class DecisionTransformerREINFORCETrainer:
             logs["loss"].append((sum(loss) / len(loss)).item())
             if i % logging_steps == logging_steps - 1:
                 logs["rolling_av_loss"].append(sum(logs["loss"][-logging_steps:]) / logging_steps)
-            scheduler.step()
+            if self.cfg.lr_scheduler:
+                scheduler.step()
         self.log(logs)
 
     def one_game_rollout(self):

@@ -25,6 +25,7 @@ class RLTrainerConfig:
         state_dim: int,
         act_dim: int,
         temperature: float,
+        lr_scheduler: bool,
     ):
         self.output_dir = output_dir
         self.logging_dir = logging_dir
@@ -47,3 +48,4 @@ class RLTrainerConfig:
         self.state_dim = state_dim
         self.act_dim = act_dim
         self.temperature = temperature
+        self.lr_scheduler = lr_scheduler
