@@ -1,5 +1,5 @@
 """
-Simple completion test.
+Deprecated.
 """
 
 import chess

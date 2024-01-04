@@ -1,3 +1,7 @@
+"""
+Reinforcement learning training classes for the Decision Transformer model.
+"""
+
 import pathlib
 import sys
 from itertools import count
@@ -17,9 +21,22 @@ from src.utils import translate
 
 
 class DecisionTransformerREINFORCETrainer:
-    """Trainer for the Decision Transformer model using the REINFORCE algorithm.
+    """
+    Trainer for the Decision Transformer model using the REINFORCE algorithm.
+
+    This trainer can be used for training and evaluation of the Decision Transformer
+    using Leela chess game encodings. The trainer can save and load model checkpoints, and
+    will log training and evaluation metrics to a text file.
+
+    Attributes:
+        cfg: configuration object for the trainer.
+        model: the Decision Transformer model.
+        device: device to use for training.
+        env: environment for RL training, specifically the agent's Stockfish opponent.
+        engine: Stockfish engine for evaluation.
+
     Notes:
-    - Only supports one-player, dense reward setting from the perspective of white, right now.
+        01/04/2023: temporarily supports only one-player, dense reward setting from the perspective of white.
     """
 
     def __init__(self, cfg, model, device):

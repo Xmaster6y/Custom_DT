@@ -2,6 +2,34 @@ from src.metric.stockfish import StockfishMetric
 
 
 class RLTrainerConfig:
+    """
+    Configuration object for RL training classes.
+
+    Attributes:
+        output_dir: path to the output directory.
+        logging_dir: path to the logging directory.
+        figures_dir: path to the figures directory.
+        overwrite_output_dir: whether to overwrite the output directory.
+        logging_steps_ratio: ratio of steps to log.
+        eval_steps_ratio: ratio of steps to evaluate.
+        save_steps_ratio: ratio of steps to save.
+        num_train_epochs: number of training epochs.
+        run_name: name of the run.
+        seed: random seed.
+        lr: learning rate.
+        one_player: whether the RL agent models one player or both players.
+        use_stock_fish_eval: whether to use Stockfish evaluations as shaping reward.
+        stockfish_metric: metric to use for Stockfish evaluations.
+        stockfish_eval_depth: depth to use for Stockfish evaluations.
+        stockfish_gameplay_depth: depth to use for Stockfish gameplay.
+        resume_from_checkpoint: whether to resume from a checkpoint.
+        checkpoint_path: path to the checkpoint.
+        state_dim: dimension of state space.
+        act_dim: dimension of action space.
+        temperature: temperature for softmax.
+        lr_scheduler: whether to use a learning rate scheduler.
+    """
+
     def __init__(
         self,
         output_dir: str,
@@ -27,6 +55,33 @@ class RLTrainerConfig:
         temperature: float,
         lr_scheduler: bool,
     ):
+        """
+        Initializes the RLTrainerConfig object.
+
+        Args:
+            output_dir: path to the output directory.
+            logging_dir: path to the logging directory.
+            figures_dir: path to the figures directory.
+            overwrite_output_dir: whether to overwrite the output directory.
+            logging_steps_ratio: ratio of steps to log.
+            eval_steps_ratio: ratio of steps to evaluate.
+            save_steps_ratio: ratio of steps to save.
+            num_train_epochs: number of training epochs.
+            run_name: name of the run.
+            seed: random seed.
+            lr: learning rate.
+            one_player: whether the RL agent models one player or both players.
+            use_stock_fish_eval: whether to use Stockfish evaluations as shaping reward.
+            stockfish_metric: metric to use for Stockfish evaluations.
+            stockfish_eval_depth: depth to use for Stockfish evaluations.
+            stockfish_gameplay_depth: depth to use for Stockfish gameplay.
+            resume_from_checkpoint: whether to resume from a checkpoint.
+            checkpoint_path: path to the checkpoint.
+            state_dim: dimension of state space.
+            act_dim: dimension of action space.
+            temperature: temperature for softmax.
+            lr_scheduler: whether to use a learning rate scheduler.
+        """
         self.output_dir = output_dir
         self.logging_dir = logging_dir
         self.figures_dir = figures_dir
