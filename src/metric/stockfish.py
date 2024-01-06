@@ -90,7 +90,7 @@ class StockfishMetric:
         if permitted_values is not None:
             if input not in permitted_values:
                 raise ValueError(
-                    f"Invalid value for parameter '{parameter_name}'. Permitted values: {str(permitted_values)}"
+                    f"Invalid value for parameter '{parameter_name}'. Permitted values: {permitted_values}"
                 )
 
     def eval_board(
