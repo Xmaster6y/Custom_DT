@@ -101,7 +101,7 @@ class StockfishMetric:
         return_info: bool = False,
     ) -> Union[float, Tuple[float, dict]]:
         """
-        Provide the Stockfish evaluation of a board position.
+        Provides the Stockfish evaluation of a board position.
 
         Args:
             board: board position to be evaluated
@@ -113,6 +113,13 @@ class StockfishMetric:
 
         Returns:
             Stockfish evaluation of the board position and optionally the Stockfish info object
+
+        Typical usage example:
+        ```python
+        >>> sm = StockfishMetric()
+        >>> chess_board = chess.Board()
+        >>> sm.eval_board(chess_board)
+        ```
         """
         # input validation
         self._validate_params("player", player, str, ["white", "black", "both"])
@@ -140,6 +147,13 @@ class StockfishMetric:
 
         Returns:
             a list of Stockfish evaluations for each board position
+
+        Typical usage example:
+        ```python
+        >>> sm = StockfishMetric()
+        >>> seq = "1. d4 d5 2. c4 e6 3. e3 Nd7 4. cxd5 exd5 5. Nc3 Ngf6 6. h3 Bd6"
+        >>> sm.eval_sequence(sequence)
+        ```
         """
         # input validation
         self._validate_params("sequence", sequence, str, None)

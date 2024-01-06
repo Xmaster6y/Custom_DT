@@ -5,7 +5,7 @@ Reinforcement learning training classes for the Decision Transformer model.
 import pathlib
 import sys
 from itertools import count
-from typing import Optional
+from typing import Optional, Tuple
 
 import chess
 import chess.engine
@@ -40,6 +40,17 @@ class DecisionTransformerREINFORCETrainer:
     """
 
     def __init__(self, cfg, model, device):
+        """
+        Initializes the DecisionTransformerREINFORCETrainer class based on a RLTrainerConfig object.
+
+        Args:
+            cfg: RLTrainerConfig configuration object for the trainer.
+            model: the Decision Transformer model.
+            device: device to use for training.
+
+        Raises:
+            ValueError: an error occurred if the platform is not recognized.
+        """
         self.cfg = cfg
         if self.cfg.resume_from_checkpoint:
             self.model = model.load_from_checkpoint(self.cfg.checkpoint_path)
@@ -67,6 +78,31 @@ class DecisionTransformerREINFORCETrainer:
         self.engine = chess.engine.SimpleEngine.popen_uci(stockfish_root)
 
     def train(self):
+        """
+        Trains the Decision Transformer model using the REINFORCE algorithm. The environment
+        used for training is a Stockfish opponent in a chess game. The training loss will be
+        logged to a text file, and the rolling average loss can be plotted.
+
+        Notes:
+            01/04/2023: temporarily supports only one-player, dense reward setting from the perspective of white.
+
+        Typical usage example:
+        ```python
+        >>> from src.train_rl.utils.rl_trainer_config import RLTrainerConfig
+        >>> from src.models.decision_transformer import DecisionTransformer
+        >>> from src.train_rl.utils.rl_trainers import DecisionTransformerREINFORCETrainer
+        >>> model = DecisionTransformer()
+        >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        >>> config = RLTrainerConfig(
+        ...     output_dir="weights/debug",
+        ...     logging_dir="logging/debug",
+        ...     figures_dir="figures/debug",
+        ...     overwrite_output_dir=True,
+        ...     ...)
+        >>> trainer = DecisionTransformerREINFORCETrainer(config, model, device)
+        >>> trainer.train()
+        ```
+        """
         self.env = ChessEnv(
             seed=self.cfg.seed,
             device=self.device,
@@ -105,7 +141,17 @@ class DecisionTransformerREINFORCETrainer:
                 scheduler.step()
         self.log(logs)
 
-    def one_game_rollout(self):
+    def one_game_rollout(self) -> Tuple[TensorDict, list]:
+        """
+        Performs a single rollout of the Decision Transformer model in a chess game against a Stockfish opponent.
+        The rollout is one game of chess, with the Decision Transformer model playing as white. The game will terminate
+        when the game has concluded or the model has made an illegal move. The data from the entire game is recorded
+        along with the action distributions from the model at each timestep.
+
+        Returns:
+            A tuple containing a TensorDict of data from the game and the action distributions from the model
+            at each timestep.
+        """
         _data = self.env.reset()  # dtype = float32 & shape = (cfg.state_dim,)
         data = _data.expand(1).contiguous()  # dtype = float32 & shape = (1,cfg.state_dim)
         unused_action = torch.nn.functional.one_hot(
@@ -157,7 +203,7 @@ class DecisionTransformerREINFORCETrainer:
                 _data = self.env.reset()
                 break
 
-        return data, action_distros
+        return (data, action_distros)
 
     def evaluate(self):
         raise NotImplementedError

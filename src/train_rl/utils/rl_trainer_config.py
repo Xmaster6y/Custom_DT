@@ -1,3 +1,23 @@
+"""
+Configuration object for RL training classes.
+
+Typical usage example:
+```python
+>>> from src.train_rl.utils.rl_trainer_config import RLTrainerConfig
+>>> from src.models.decision_transformer import DecisionTransformer
+>>> from src.train_rl.utils.rl_trainers import DecisionTransformerREINFORCETrainer
+>>> model = DecisionTransformer()
+>>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+>>> config = RLTrainerConfig(
+...     output_dir="weights/debug",
+...     logging_dir="logging/debug",
+...     figures_dir="figures/debug",
+...     overwrite_output_dir=True,
+...     ...)
+>>> trainer = DecisionTransformerREINFORCETrainer(config, model, device)
+```
+"""
+
 from src.metric.stockfish import StockfishMetric
 
 
