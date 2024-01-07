@@ -1,6 +1,40 @@
 """
-Model training using self-supervised learning.
+Model training using self-supervised learning/offline reinforcement learning using Leela encodings.
+
+This script trains a Decision Transformer model on the dataset created using Leela encodings.
+The training can be initiated using the command line.
+
+Arguments:
+    --debug: if True, the training is done on a small dataset.
+    --training: if True, the model is trained. Otherwise, the model is evaluated.
+    --window-size: the size of the move window to model for each sequence in the dataset.
+    --seed: the seed used to generate the training examples.
+    --layers: the number of layers in the Decision Transformer model.
+    --heads: the number of attention heads in the Decision Transformer model.
+    --name: the name of the training. If None, the name is automatically generated.
+    --overwrite: if True, the log directory is overwritten.
+    --n-epochs: the number of epochs used for training.
+    --logging-steps-ratio: the ratio of steps between each logging.
+    --eval-steps-ratio: the ratio of steps between each evaluation.
+    --train-batch-size: the size of the training batch.
+    --gradient-accumulation-steps: the number of gradient accumulation steps.
+    --eval-batch-size: the size of the evaluation batch.
+    --lr: the learning rate.
+    --one-player: if True, the training examples are generated from one player's perspective.
+    --use-stockfish-eval: if True, the training examples are augmented with Stockfish evaluation shaping rewards.
+    --stockfish-eval-depth: the depth of the Stockfish evaluation.
+    --resume-from-checkpoint: if True, the training is resumed from the latest checkpoint.
+    --checkpoint-path: the path to the checkpoint from which the training is resumed.
+    --output-root: the root folder where the weights and logs are saved.
+
+
+Typical usage example:
+
+```bash
+>>> python src.train.leela.py --debug True --window-size 10
+```
 """
+
 import argparse
 
 import chess

@@ -1,5 +1,32 @@
 """
-Model training using self-supervised learning.
+(Deprecated) Model training using self-supervised/online reinforcement learning with standard encodings.
+
+This script trains a Decision Transformer model on a dataset using standard encodings.
+The training can be initiated using the command line.
+
+Arguments:
+    --debug: if True, the training is done on a small dataset.
+    --training: if True, the model is trained. Otherwise, the model is evaluated.
+    --state-dim: the dimension of the state encoding.
+    --act-dim: the dimension of the action encoding.
+    --window-size: the size of the move window to model for each sequence in the dataset.
+    --seed: the seed used to generate the training examples.
+    --name: the name of the training. If None, the name is automatically generated.
+    --overwrite: if True, the log directory is overwritten.
+    --n-epochs: the number of epochs used for training.
+    --logging-steps-ratio: the ratio of steps between each logging.
+    --eval-steps-ratio: the ratio of steps between each evaluation.
+    --train-batch-size: the size of the training batch.
+    --gradient-accumulation-steps: the number of gradient accumulation steps.
+    --eval-batch-size: the size of the evaluation batch.
+    --lr: the learning rate.
+    --resume-from-checkpoint: if True, the training is resumed from the latest checkpoint.
+
+Typical usage example:
+
+```bash
+>>> python src/train/window_autoreg.py --debug True --window-size 10
+```
 """
 import argparse
 

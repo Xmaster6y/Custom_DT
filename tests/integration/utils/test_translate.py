@@ -39,3 +39,14 @@ class TestInputFormat:
         )
         assert input_dict["actions"].shape == (1, 10, 4672)
         _ = default_64_model(**input_dict)
+
+
+class TestBoardTensorToFEN:
+    def test_initial_board_to_FEN(self):
+        board = chess.Board()
+        tensor = translate.board_to_72tensor(board)
+        assert translate.complete_tensor_to_fen(tensor) == chess.STARTING_FEN
+
+    def test_default_dataset_to_FEN(self, default_dataset_boards):
+        for board in default_dataset_boards:
+            assert translate.complete_tensor_to_fen(translate.board_to_72tensor(board)) == board.fen()

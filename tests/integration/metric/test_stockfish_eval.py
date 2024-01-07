@@ -1,5 +1,5 @@
 """
-Test translate.
+Test stockfish eval.
 """
 
 import torch

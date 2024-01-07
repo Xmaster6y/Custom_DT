@@ -1,5 +1,27 @@
 """
-Metric test class.
+(Deprecated) Tests dataset formatting.
+
+With this class, a user can test that the chess dataset augmented with
+Stockfish evaluation shaping rewards is formatted correctly for the one and two
+player settings. This is confirmed by printing out the game dictionary and
+doing a forward pass through a Decision Transformer. Uses deprecated encodings.
+
+Typical usage example:
+
+```python
+    FILE_NAME = "data/chess_games_base/test_stockfish_5000.jsonl"
+    N = 3
+    SEED = 42
+    generator = torch.Generator(device=DEVICE)
+    generator.manual_seed(SEED)
+
+    CT = StockfishEvalTest(
+        file_name=FILE_NAME,
+        n_test_games=N,
+        generator=generator,
+    )
+    CT.run_test()
+```
 """
 
 import torch
