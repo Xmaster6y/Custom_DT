@@ -1,5 +1,40 @@
 """
-Model training using reinforcement learning with a basic REINFORCE algorithm.
+Model training using RL and a simple REINFORCE algorithm using deprecated encodings.
+
+This script trains a Decision Transformer model on the dataset created using the deprecated encodings.
+The training can be initiated using the command line.
+
+Arguments:
+    --debug: if True, the training is done on a small dataset.
+    --training: if True, the model is trained. Otherwise, the model is evaluated.
+    --seed: the seed used to generate the training examples.
+    --layers: the number of layers in the Decision Transformer model.
+    --heads: the number of attention heads in the Decision Transformer model.
+    --name: the name of the training. If None, the name is automatically generated.
+    --overwrite: if True, the log directory is overwritten.
+    --n-epochs: the number of epochs used for training.
+    --logging-steps-ratio: the ratio of steps between each logging.
+    --eval-steps-ratio: the ratio of steps between each evaluation.
+    --lr: the learning rate.
+    --one-player: if True, the training examples are generated from one player's perspective.
+    --use-stockfish-eval: if True, the training examples are augmented with Stockfish evaluation shaping rewards.
+    --stockfish-eval-depth: the depth of the Stockfish evaluation.
+    --stockfish-gameplay-depth: the depth of the Stockfish evaluation during gameplay.
+    --resume-from-checkpoint: if True, the training is resumed from the latest checkpoint.
+    --checkpoint-path: the path to the checkpoint from which the training is resumed.
+    --output-root: the root folder where the weights and logs are saved.
+    --temperature: the temperature used for the softmax in the policy.
+    --lr-scheduler: if True, a cosine-annealing learning rate scheduler is used.
+
+Note:
+    The RL trainer currently only supports the one player mode, dense reward setting.
+    Resuming from checkpoint is currently not supported. Evaluation mode is currently not supported.
+
+Typical usage example:
+
+```bash
+>>> python src.train_rl.train_rl.py --training True --no-debug --n-epochs 10000 --lr 1e-4
+```
 """
 import argparse
 

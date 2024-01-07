@@ -1,5 +1,10 @@
 """
-File containing the encodings for the Leela Chess Zero engine.
+Encodes a dataset of chess games into a form suitable for the Leela Chess Zero engine.
+
+The Leela Chess Zero engine uses a 13x8x8 tensor to represent the board state. This tensor is
+composed of 12 planes, each representing a piece type for each player. The 13th plane represents
+the repetition count of the board state. Moves are encoded as indices into a 4672-dimensional vector.
+
 """
 
 import re

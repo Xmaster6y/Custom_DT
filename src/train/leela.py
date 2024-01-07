@@ -21,7 +21,7 @@ Arguments:
     --eval-batch-size: the size of the evaluation batch.
     --lr: the learning rate.
     --one-player: if True, the training examples are generated from one player's perspective.
-    --use-stockfish-eval: if True, the training examples are augmeted with Stockfish evaluation shaping rewards.
+    --use-stockfish-eval: if True, the training examples are augmented with Stockfish evaluation shaping rewards.
     --stockfish-eval-depth: the depth of the Stockfish evaluation.
     --resume-from-checkpoint: if True, the training is resumed from the latest checkpoint.
     --checkpoint-path: the path to the checkpoint from which the training is resumed.
@@ -31,7 +31,7 @@ Arguments:
 Typical usage example:
 
 ```bash
->>> python src/train/leela.py --debug True --window-size 10
+>>> python src.train.leela.py --debug True --window-size 10
 ```
 """
 

@@ -200,6 +200,7 @@ class DecisionTransformerREINFORCETrainer:
             _data = step_mdp(_data, keep_other=True)
 
             if _data["done"]:
+                print(_data)
                 _data = self.env.reset()
                 break
 
@@ -214,7 +215,16 @@ class DecisionTransformerREINFORCETrainer:
     def load_from_checkpoint(self, checkpoint_path):
         raise NotImplementedError
 
-    def plot(self, rolling_av_loss):
+    def plot(self, rolling_av_loss: list):
+        """
+        Plots the rolling average loss of a training run. The plot will be saved to a png file.
+
+        Args:
+            rolling_av_loss: list of rolling average loss values from a training run.
+
+        Notes:
+            This is a primitive plotting function that will be improved.
+        """
         plt.figure(figsize=(10, 5))
         plt.subplot(1, 2, 1)
         n_points = len(rolling_av_loss) // 200
@@ -224,6 +234,16 @@ class DecisionTransformerREINFORCETrainer:
         plt.savefig(f"{self.cfg.figures_dir}.png")
 
     def log(self, logs):
+        """
+        Logs the rolling average loss of a training run to a text file. Will also
+        plot the rolling average loss.
+
+        Args:
+            logs: dictionary of logs from a training run.
+
+        Notes:
+            This is a primitive logging function that will be improved.
+        """
         action = "w" if self.cfg.overwrite_output_dir else "a"
         with open(f"{self.cfg.logging_dir}.txt", action) as f:
             f.write(f"run name: {self.cfg.run_name}\n")
@@ -244,7 +264,32 @@ class DecisionTransformerREINFORCETrainer:
 
 
 class ChessEnv(EnvBase):
-    metadata = {"render.modes": ["human"]}
+    """
+    Environment for the Decision Transformer model to play chess against.
+
+    This environment is a Stockfish chess player. This environment is built on the main
+    environment class (EnvBase) in the tensordict library: https://pytorch.org/tensordict/overview.html.
+
+    Attributes:
+        batch_locked: whether the environment can be used with a batch size different than the one
+            it was initialized with.
+        device: device to use for training.
+        state_dim: dimension of state space.
+        act_dim: dimension of action space.
+        gameplay_depth: depth to use for Stockfish gameplay.
+        engine: Stockfish engine for gameplay.
+        stockfish_metric: StockfishMetric object to use for Stockfish evaluations.
+        stockfish_eval_depth: search depth to use for Stockfish evaluations.
+        observation_spec: specification for the observation space. This is equivalent to the state
+            space because this is a fully observable environment.
+        state_spec: specification for the state space.
+        action_spec: specification for the action space.
+        reward_spec: specification for the reward space.
+        done_spec: specification for the termination signal.
+        rng: random number generator.
+    """
+
+    # metadata = {"render.modes": ["human"]} - I don't think this is necessary
     batch_locked = False
 
     def __init__(
@@ -260,6 +305,21 @@ class ChessEnv(EnvBase):
         stockfish_metric=None,
         stockfish_eval_depth=6,
     ):
+        """
+        Initializes an instance of the ChessEnv class.
+
+        Args:
+            td_params: tensordict containing the hyperparameters for the environment.
+            seed: random seed.
+            device: device to use for training.
+            batch_size: batch size to use for training.
+            state_dim: dimension of state space.
+            act_dim: dimension of action space.
+            gameplay_depth: depth to use for Stockfish gameplay.
+            engine: Stockfish engine for gameplay.
+            stockfish_metric: StockfishMetric object to use for Stockfish evaluations.
+            stockfish_eval_depth: search depth to use for Stockfish evaluations.
+        """
         self.device = device
         self.state_dim = state_dim
         self.act_dim = act_dim
@@ -278,8 +338,17 @@ class ChessEnv(EnvBase):
         self.set_seed(seed)
 
     @staticmethod
-    def gen_params(batch_size=None, gameplay_depth=2) -> TensorDictBase:
-        """Returns a tensordict containing the hyperparameters for the environment."""
+    def gen_params(batch_size=None, gameplay_depth=2) -> TensorDict:
+        """
+        Generates the hyperparameters for the environment.
+
+        Args:
+            batch_size: batch size to use for training.
+            gameplay_depth: depth to use for Stockfish gameplay.
+
+        Returns:
+            A tensordict containing the hyperparameters for the environment.
+        """
         if batch_size is None:
             batch_size = []
         td = TensorDict(
@@ -297,7 +366,14 @@ class ChessEnv(EnvBase):
             td = td.expand(batch_size).contiguous()
         return td
 
-    def _make_spec(self, td_params):
+    def _make_spec(self, td_params: TensorDict):
+        """
+        Creates the specifications for the observation, state, action, and reward spaces, along
+        with the specification for the termination signal.
+
+        Args:
+            td_params: tensordict containing the hyperparameters for the environment.
+        """
         self.observation_spec = CompositeSpec(
             board=BoundedTensorSpec(
                 low=-7,
@@ -332,10 +408,15 @@ class ChessEnv(EnvBase):
             device=self.device,
         )
 
-    def make_composite_from_td(self, td):
+    def make_composite_from_td(self, td: TensorDict) -> CompositeSpec:
         """
-        Custom funtion to convert a tensordict in a similar spec structure
-        of unbounded values.
+        Converts a tensordict into a similar spec structure of unbounded values.
+
+        Args:
+            td: tensordict to convert.
+
+        Returns:
+            A CompositeSpec object with the same structure as the input tensordict.
         """
         return CompositeSpec(
             {
@@ -347,7 +428,20 @@ class ChessEnv(EnvBase):
             shape=td.shape,
         )
 
-    def _reset(self, tensordict, batch_size=None):
+    def _reset(self, tensordict: TensorDict, batch_size=None) -> TensorDict:
+        """
+        Resets the environment by generating a starting chess board.
+
+        Args:
+            tensordict: tensordict containing the hyperparameters for the environment.
+            batch_size: batch size to use for training.
+
+        Returns:
+            A tensordict of the starting chess board that is ready to be modified in a rollout.
+
+        Raises:
+            RuntimeError: an error occurs if the state dimension is not 72.
+        """
         if tensordict is None or tensordict.is_empty():
             # if no tensordict is passed, we generate a single set of hyperparameters
             # Otherwise, we assume that the input tensordict contains all the relevant
@@ -367,7 +461,22 @@ class ChessEnv(EnvBase):
             batch_size=tensordict.shape,
         )
 
-    def _step(self, tensordict):
+    def _step(self, tensordict: TensorDict) -> TensorDict:
+        """
+        Performs a single environment step. If the action taken by the model is not an intelligble
+        move (from-square is not occupied), the return-to-go will be 10 and the game will terminate.
+        If the action taken by the model is an intelligible but illegal move, the return-to-go will
+        be 7 and the game will terminate. If the action taken by the model is a legal move, the
+        Stockfish engine will play a move and the return-to-go will be the Stockfish evaluation of
+        the board position from the perspective of white.
+
+        Args:
+            tensordict: tensordict containing the current state of the environment.
+
+        Returns:
+            A tensordict containing the next state of the environment, the hyperparameters, the reward,
+            and the termination signal.
+        """
         board_tensor, move = (
             tensordict["board"],
             tensordict["action"],
@@ -420,5 +529,11 @@ class ChessEnv(EnvBase):
         )
 
     def _set_seed(self, seed: Optional[int]):
+        """
+        Sets the random seed for the environment.
+
+        Args:
+            seed: random seed.
+        """
         rng = torch.manual_seed(seed)
         self.rng = rng
