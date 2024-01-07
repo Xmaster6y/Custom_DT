@@ -1,5 +1,5 @@
 """
-Encoding functions for converting between different representations of the board.
+(Deprecated) Encoding functions for converting between different representations of the board.
 """
 
 import re
