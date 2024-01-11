@@ -146,7 +146,7 @@ def RL_deprec_encoding_trainer_cfg():
         logging_steps_ratio=0.01,
         eval_steps_ratio=0.1,
         save_steps_ratio=0.1,
-        num_train_epochs=11,
+        num_train_epochs=5,
         run_name="test_training",
         seed=42,
         lr=1e-4,
