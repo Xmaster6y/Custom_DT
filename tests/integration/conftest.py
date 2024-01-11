@@ -2,6 +2,7 @@
 Fixtures for testing utils.
 """
 
+import os
 import pathlib
 
 import chess
@@ -11,6 +12,7 @@ import torch
 
 import src.utils.translate as translate
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
+from src.train_rl.utils.rl_trainer_config import RLTrainerConfig
 from src.utils.dataset import OnePlayerChessDataset, TwoPlayersChessDataset
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -119,3 +121,45 @@ def default_dataset_boards():
             board.push_san(alg_move)
         board_list.append(board)
     yield board_list
+
+
+@pytest.fixture(scope="module")
+def RL_deprec_encoding_model():
+    conf = DecisionTransformerConfig(
+        state_dim=72,
+        act_dim=4672,
+        n_layers=6,
+        n_heads=4,
+        hidden_size=64 * 4,
+    )
+    yield DecisionTransformerModel(conf)
+
+
+@pytest.fixture(scope="module")
+def RL_deprec_encoding_trainer_cfg():
+    cwd = os.getcwd()
+    trainer_cfg = RLTrainerConfig(
+        output_dir=f"{cwd}\\weights\\test_training",
+        logging_dir=f"{cwd}\\logging\\test_training",
+        figures_dir=f"{cwd}\\figures\\test_training",
+        overwrite_output_dir=True,
+        logging_steps_ratio=0.01,
+        eval_steps_ratio=0.1,
+        save_steps_ratio=0.1,
+        num_train_epochs=11,
+        run_name="test_training",
+        seed=42,
+        lr=1e-4,
+        one_player=True,
+        use_stock_fish_eval=True,
+        stockfish_metric=None,
+        stockfish_eval_depth=6,
+        stockfish_gameplay_depth=2,
+        resume_from_checkpoint=False,
+        checkpoint_path=None,
+        state_dim=72,
+        act_dim=4672,
+        temperature=1.0,
+        lr_scheduler=False,
+    )
+    yield trainer_cfg

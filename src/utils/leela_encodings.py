@@ -305,6 +305,10 @@ def format_tensors(
 
     Returns:
         A tuple of tensors for modeling with the Decision Transformer.
+
+    Raises:
+        ValueError: If shaping rewards but either a.) the position evaluator provided to the encode_seq function has
+            an error or b.) the position evaluator provided to the encode_seq function is None.
     """
     seq_len = len(move_indices)
     if window_start + window_size > seq_len:

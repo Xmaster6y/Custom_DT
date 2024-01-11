@@ -17,6 +17,8 @@ from torchrl.data import BoundedTensorSpec, CompositeSpec, UnboundedContinuousTe
 from torchrl.envs import EnvBase
 from torchrl.envs.utils import step_mdp
 
+from src.models.decision_transformer.modeling_decision_transformer import DecisionTransformerModel
+from src.train_rl.utils.rl_trainer_config import RLTrainerConfig
 from src.utils import translate
 
 
@@ -39,7 +41,7 @@ class DecisionTransformerREINFORCETrainer:
         01/04/2023: temporarily supports only one-player, dense reward setting from the perspective of white.
     """
 
-    def __init__(self, cfg, model, device):
+    def __init__(self, cfg: RLTrainerConfig, model: DecisionTransformerModel, device: str):
         """
         Initializes the DecisionTransformerREINFORCETrainer class based on a RLTrainerConfig object.
 
