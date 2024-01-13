@@ -138,7 +138,7 @@ def RL_deprec_encoding_model():
 @pytest.fixture(scope="module")
 def RL_deprec_encoding_trainer_cfg():
     cwd = os.getcwd()
-    trainer_cfg = RLTrainerConfig(
+    yield RLTrainerConfig(
         output_dir=f"{cwd}\\weights\\test_training",
         logging_dir=f"{cwd}\\logging\\test_training",
         figures_dir=f"{cwd}\\figures\\test_training",
@@ -162,4 +162,3 @@ def RL_deprec_encoding_trainer_cfg():
         temperature=1.0,
         lr_scheduler=False,
     )
-    yield trainer_cfg
