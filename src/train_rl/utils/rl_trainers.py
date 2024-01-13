@@ -36,6 +36,8 @@ class DecisionTransformerREINFORCETrainer:
         device: device to use for training.
         env: environment for RL training, specifically the agent's Stockfish opponent.
         engine: Stockfish engine for evaluation.
+        checkpoint_dict: dictionary containing the model state dictionary, optimizer state dictionary,
+            and loss at the time of the latest checkpoint.
 
     Notes:
         01/04/2023: temporarily supports only one-player, dense reward setting from the perspective of white.
@@ -54,10 +56,11 @@ class DecisionTransformerREINFORCETrainer:
             ValueError: an error occurred if the platform is not recognized.
         """
         self.cfg = cfg
+        self.model = model
         if self.cfg.resume_from_checkpoint:
-            self.model = model.load_from_checkpoint(self.cfg.checkpoint_path)
-        else:
-            self.model = model
+            self.checkpoint_dict = torch.load(self.cfg.checkpoint_path)
+            self.model.load_state_dict(self.checkpoint_dict["model_state_dict"])
+
         self.device = device
 
         if sys.platform in ["linux"]:
@@ -116,14 +119,24 @@ class DecisionTransformerREINFORCETrainer:
             stockfish_eval_depth=self.cfg.stockfish_eval_depth,
         )
         optim = torch.optim.AdamW(self.model.parameters(), lr=self.cfg.lr)
-
         pbar = tqdm.tqdm(range(self.cfg.num_train_epochs))
+
+        logging_steps = int(1 / self.cfg.logging_steps_ratio)
+        checkpointing_steps = int(1 / self.cfg.checkpointing_steps_ratio)
+        logs = {"loss": [], "rolling_av_loss": []}
 
         if self.cfg.lr_scheduler:
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, self.cfg.num_train_epochs)
 
-        logging_steps = int(1 / self.cfg.logging_steps_ratio)
-        logs = {"loss": [], "rolling_av_loss": []}
+        if self.cfg.resume_from_checkpoint:
+            optim.load_state_dict(self.checkpoint_dict["optim_state_dict"])
+            pbar = tqdm.tqdm(
+                iterable=range(self.checkpoint_dict["epoch"] + 1, self.cfg.num_train_epochs),
+                total=self.cfg.num_train_epochs,
+                initial=self.checkpoint_dict["epoch"] + 1,
+            )
+            logs["loss"] = self.checkpoint_dict["loss"]
+            logs["rolling_av_loss"] = self.checkpoint_dict["rolling_av_loss"]
 
         for i in pbar:
             rollout, distros = self.one_game_rollout()
@@ -137,8 +150,19 @@ class DecisionTransformerREINFORCETrainer:
             optim.zero_grad()
             pbar.set_description(f"loss: {loss}," f"rewards: {rollout['next']['reward']},")
             logs["loss"].append((sum(loss) / len(loss)).item())
+
             if i % logging_steps == logging_steps - 1:
                 logs["rolling_av_loss"].append(sum(logs["loss"][-logging_steps:]) / logging_steps)
+
+            if i % checkpointing_steps == checkpointing_steps - 1:
+                self.save_checkpoint(
+                    epoch=i,
+                    model_state_dict=self.model.state_dict(),
+                    optim_state_dict=optim.state_dict(),
+                    loss=logs["loss"],
+                    rolling_av_loss=logs["rolling_av_loss"],
+                )
+
             if self.cfg.lr_scheduler:
                 scheduler.step()
         self.log(logs)
@@ -202,7 +226,7 @@ class DecisionTransformerREINFORCETrainer:
             _data = step_mdp(_data, keep_other=True)
 
             if _data["done"]:
-                print(_data)
+                # print(_data)
                 _data = self.env.reset()
                 break
 
@@ -211,11 +235,28 @@ class DecisionTransformerREINFORCETrainer:
     def evaluate(self):
         raise NotImplementedError
 
-    def save_checkpoint(self):
-        raise NotImplementedError
+    def save_checkpoint(
+        self, epoch: int, model_state_dict: dict, optim_state_dict: dict, loss: list, rolling_av_loss: list
+    ):
+        """
+        Saves a model checkpoint to a file.
 
-    def load_from_checkpoint(self, checkpoint_path):
-        raise NotImplementedError
+        Args:
+            epoch: current epoch number.
+            model_state_dict: state dictionary of the model.
+            optim_state_dict: state dictionary of the optimizer.
+            loss: loss value at the current epoch.
+        """
+        torch.save(
+            {
+                "epoch": epoch,
+                "model_state_dict": model_state_dict,
+                "optim_state_dict": optim_state_dict,
+                "loss": loss,
+                "rolling_av_loss": rolling_av_loss,
+            },
+            f"{self.cfg.output_dir}_checkpt_e{epoch}.pt",
+        )
 
     def plot(self, rolling_av_loss: list):
         """

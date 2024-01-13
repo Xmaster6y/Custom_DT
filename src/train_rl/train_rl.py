@@ -5,7 +5,7 @@ This script trains a Decision Transformer model on the dataset created using the
 The training can be initiated using the command line.
 
 Arguments:
-    --debug: if True, the training is done on a small dataset.
+    --debug: if True, then output directories will be overwritten and signified as debug.
     --training: if True, the model is trained. Otherwise, the model is evaluated.
     --seed: the seed used to generate the training examples.
     --layers: the number of layers in the Decision Transformer model.
@@ -21,7 +21,8 @@ Arguments:
     --stockfish-eval-depth: the depth of the Stockfish evaluation.
     --stockfish-gameplay-depth: the depth of the Stockfish evaluation during gameplay.
     --resume-from-checkpoint: if True, the training is resumed from the latest checkpoint.
-    --checkpoint-path: the path to the checkpoint from which the training is resumed.
+    --checkpoint-path: the local path to the checkpoint from which the training is resumed.
+    --checkpointing-steps-ratio: the ratio of steps between each time the model is saved.
     --output-root: the root folder where the weights and logs are saved.
     --temperature: the temperature used for the softmax in the policy.
     --lr-scheduler: if True, a cosine-annealing learning rate scheduler is used.
@@ -37,6 +38,7 @@ Typical usage example:
 ```
 """
 import argparse
+import os
 
 import torch
 
@@ -66,7 +68,8 @@ parser.add_argument("--stockfish-eval-depth", type=int, default=6)
 parser.add_argument("--stockfish-gameplay-depth", type=int, default=2)
 parser.add_argument("--resume-from-checkpoint", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--checkpoint-path", type=str, default=None)
-parser.add_argument("--output-root", type=str, default="")
+parser.add_argument("--checkpointing-steps-ratio", type=float, default=0.1)
+parser.add_argument("--output-root", type=str, default=os.getcwd())
 parser.add_argument("--temperature", type=float, default=1.0)
 parser.add_argument("--lr-scheduler", action=argparse.BooleanOptionalAction, default=False)
 # Model
@@ -128,6 +131,7 @@ try:  # To be sure to close stockfish engine if an error occurs
         stockfish_gameplay_depth=args.stockfish_gameplay_depth,
         resume_from_checkpoint=args.resume_from_checkpoint,
         checkpoint_path=args.checkpoint_path,
+        checkpointing_steps_ratio=args.checkpointing_steps_ratio,
         state_dim=args.state_dim,
         act_dim=args.act_dim,
         temperature=args.temperature,
