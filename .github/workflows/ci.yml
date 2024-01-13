@@ -33,9 +33,9 @@ jobs:
         STOCKFISH_GDRIVE_ID: ${{ secrets.STOCKFISH_GDRIVE_ID }}
       run: |
         mkdir -p stockfish-source/stockfish
-        cd stockfish-source/stockfish
-        curl -L "https://drive.google.com/uc?export=download&id=${STOCKFISH_GDRIVE_ID}"
-        chmod 777 stockfish-source/stockfish
+        curl -L -o "stockfish-source/stockfish/stockfish_src" "https://drive.google.com/uc?export=download&id=${STOCKFISH_GDRIVE_ID}"
+        chmod 777 stockfish-source/stockfish/stockfish_src
+        tree -d /stockfish-source/
         tree stockfish-source
     - name: Run tests
       run: |
