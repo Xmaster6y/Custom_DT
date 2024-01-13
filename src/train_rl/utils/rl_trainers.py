@@ -14,7 +14,6 @@ import torch
 import tqdm
 from tensordict.tensordict import TensorDict, TensorDictBase
 from torchrl.data import BoundedTensorSpec, CompositeSpec, UnboundedContinuousTensorSpec
-from torchrl.envs import EnvBase
 from torchrl.envs.utils import step_mdp
 
 from src.models.decision_transformer.modeling_decision_transformer import DecisionTransformerModel
@@ -176,9 +175,9 @@ class DecisionTransformerREINFORCETrainer:
 
         Returns:
             A tuple containing a TensorDict of data from the game and the action distributions from the model
-            at each timestep.
+                at each timestep.
         """
-        _data = self.env.reset()  # dtype = float32 & shape = (cfg.state_dim,)
+        _data, curr_env_state = self.env.reset()  # dtype = float32 & shape = (cfg.state_dim,)
         data = _data.expand(1).contiguous()  # dtype = float32 & shape = (1,cfg.state_dim)
         unused_action = torch.nn.functional.one_hot(
             torch.tensor([1]), num_classes=self.cfg.act_dim
@@ -221,13 +220,14 @@ class DecisionTransformerREINFORCETrainer:
 
             _data["action"] = sampled_action  # dtype = float32 & shape = (self.cfg.act_dim,)
 
-            _data = self.env.step(_data)  # out = dtype = float32 & shape = (cfg.state_dim,), (self.cfg.act_dim,), (1,)
+            _data, curr_env_state = self.env.step(
+                _data, curr_env_state
+            )  # out = dtype = float32 & shape = (cfg.state_dim,), (self.cfg.act_dim,), (1,)
             data = torch.cat([data, _data.expand(1).contiguous()], dim=0) if t > 0 else _data.expand(1).contiguous()
-            _data = step_mdp(_data, keep_other=True)
 
+            _data = step_mdp(_data, keep_other=True)
             if _data["done"]:
-                # print(_data)
-                _data = self.env.reset()
+                _data, curr_env_state = self.env.reset(_data)
                 break
 
         return (data, action_distros)
@@ -306,16 +306,14 @@ class DecisionTransformerREINFORCETrainer:
         self.plot(logs["rolling_av_loss"])
 
 
-class ChessEnv(EnvBase):
+class ChessEnv:
     """
     Environment for the Decision Transformer model to play chess against.
 
-    This environment is a Stockfish chess player. This environment is built on the main
-    environment class (EnvBase) in the tensordict library: https://pytorch.org/tensordict/overview.html.
+    This environment is a Stockfish chess player. This environment is built using the tensordict
+    library: https://pytorch.org/tensordict/overview.html.
 
     Attributes:
-        batch_locked: whether the environment can be used with a batch size different than the one
-            it was initialized with.
         device: device to use for training.
         state_dim: dimension of state space.
         act_dim: dimension of action space.
@@ -331,9 +329,6 @@ class ChessEnv(EnvBase):
         done_spec: specification for the termination signal.
         rng: random number generator.
     """
-
-    # metadata = {"render.modes": ["human"]} - I don't think this is necessary
-    batch_locked = False
 
     def __init__(
         self,
@@ -372,20 +367,23 @@ class ChessEnv(EnvBase):
         self.stockfish_eval_depth = stockfish_eval_depth
 
         if td_params is None:
-            td_params = ChessEnv.gen_params(batch_size=batch_size, gameplay_depth=self.gameplay_depth)
+            td_params = ChessEnv.gen_params(
+                device=self.device, batch_size=batch_size, gameplay_depth=self.gameplay_depth
+            )
 
-        super().__init__(device=device, batch_size=[])
+        # super().__init__(device=device, batch_size=[])
         self._make_spec(td_params)
         if seed is None:
             seed = torch.empty((), dtype=torch.int64).random_().item()
-        self.set_seed(seed)
+        self._set_seed(seed)
 
     @staticmethod
-    def gen_params(batch_size=None, gameplay_depth=2) -> TensorDict:
+    def gen_params(device: str, batch_size=None, gameplay_depth=2) -> TensorDict:
         """
         Generates the hyperparameters for the environment.
 
         Args:
+            device: device on which training is being conducted.
             batch_size: batch size to use for training.
             gameplay_depth: depth to use for Stockfish gameplay.
 
@@ -404,6 +402,7 @@ class ChessEnv(EnvBase):
                 )
             },
             [],
+            device=device,
         )
         if batch_size:
             td = td.expand(batch_size).contiguous()
@@ -471,16 +470,17 @@ class ChessEnv(EnvBase):
             shape=td.shape,
         )
 
-    def _reset(self, tensordict: TensorDict, batch_size=None) -> TensorDict:
+    def reset(self, tensordict: TensorDict = None, batch_size=None) -> Tuple[TensorDict, chess.Board()]:
         """
         Resets the environment by generating a starting chess board.
 
         Args:
-            tensordict: tensordict containing the hyperparameters for the environment.
+            tensordict: tensordict containing information about the environment.
             batch_size: batch size to use for training.
 
         Returns:
-            A tensordict of the starting chess board that is ready to be modified in a rollout.
+            A tensordict of the starting chess board that is ready to be modified in a rollout and the starting
+            chess board object.
 
         Raises:
             RuntimeError: an error occurs if the state dimension is not 72.
@@ -489,22 +489,26 @@ class ChessEnv(EnvBase):
             # if no tensordict is passed, we generate a single set of hyperparameters
             # Otherwise, we assume that the input tensordict contains all the relevant
             # parameters to get started.
-            tensordict = self.gen_params(batch_size=batch_size)
+            tensordict = self.gen_params(device=self.device, batch_size=batch_size)
         if self.state_dim == 72:
             board = translate.board_to_72tensor(chess.Board())
         else:
             raise RuntimeError("state_dim must be 72")
 
-        return TensorDict(
-            {
-                "board": board,  # dtype = float32 & shape = (72,)
-                "params": tensordict["params"],
-                "done": torch.tensor([0], dtype=torch.bool),
-            },
-            batch_size=tensordict.shape,
+        return (
+            TensorDict(
+                {
+                    "board": board,  # dtype = float32 & shape = (72,)
+                    "params": tensordict["params"],
+                    "done": torch.tensor([0], dtype=torch.bool),
+                },
+                batch_size=tensordict.shape,
+                device=self.device,
+            ),
+            chess.Board(),
         )
 
-    def _step(self, tensordict: TensorDict) -> TensorDict:
+    def step(self, tensordict: TensorDict, curr_env_state: chess.Board()) -> Tuple[TensorDict, chess.Board()]:
         """
         Performs a single environment step. If the action taken by the model is not an intelligble
         move (from-square is not occupied), the return-to-go will be 10 and the game will terminate.
@@ -515,53 +519,54 @@ class ChessEnv(EnvBase):
 
         Args:
             tensordict: tensordict containing the current state of the environment.
+            curr_env_state: current chess board object of the environment.
 
         Returns:
-            A tensordict containing the next state of the environment, the hyperparameters, the reward,
-            and the termination signal.
+            A tuple containing a.) a tensordict containing a tensor representation of the next state of the
+            environment, the hyperparameters, the reward, and the termination signal, and b.) a chess board
+            object of the next state of the environment.
         """
         board_tensor, move = (
             tensordict["board"],
             tensordict["action"],
         )  # dtype = float32 & shape = (72,), (self.cfg.act_dim,)
         env_gameplay_depth = tensordict["params", "env_gameplay_depth"]
-        board = chess.Board(fen=translate.complete_tensor_to_fen(board_tensor))  # dtype float32 & shape = (state_dim,)
 
-        proposed_move = translate.decode_move(torch.argmax(move).item(), board)
+        proposed_move = translate.decode_move(torch.argmax(move).item(), curr_env_state)
         # from square is unoccupied - not even picking up a piece: should be punished severely
         if proposed_move is None:
             next_board_tensor = board_tensor
             reward_tensor = torch.tensor([10], dtype=torch.float32)
             done = torch.tensor([1], dtype=torch.bool)
         # proposing a move with an actual piece, but not a legal move: should be punished less severely
-        elif proposed_move not in list(board.legal_moves):
+        elif proposed_move not in list(curr_env_state.legal_moves):
             next_board_tensor = board_tensor
             reward_tensor = torch.tensor([7], dtype=torch.float32)
             done = torch.tensor([1], dtype=torch.bool)
         # proposes legal move
         else:
-            board.push(proposed_move)
+            curr_env_state.push(proposed_move)
 
-            if board.outcome() is not None:
+            if curr_env_state.outcome() is not None:
                 done = torch.tensor([1], dtype=torch.bool)
             else:
                 done = torch.tensor([0], dtype=torch.bool)
-                next_move = self.engine.play(board, chess.engine.Limit(depth=env_gameplay_depth)).move
-                board.push(next_move)
-            next_board_tensor = translate.board_to_72tensor(board.copy()).float()
+                next_move = self.engine.play(curr_env_state, chess.engine.Limit(depth=env_gameplay_depth)).move
+                curr_env_state.push(next_move)
+            next_board_tensor = translate.board_to_72tensor(curr_env_state.copy()).float()
             reward_tensor = torch.tensor(
                 [
                     1
                     - self.stockfish_metric.eval_board(
-                        board, player="white", evaluation_depth=self.stockfish_eval_depth
+                        curr_env_state, player="white", evaluation_depth=self.stockfish_eval_depth
                     )
                 ]
             )
 
-            if board.outcome() is not None:
+            if curr_env_state.outcome() is not None:
                 done = torch.tensor([1], dtype=torch.bool)
 
-        return TensorDict(
+        next_td = TensorDict(
             {
                 "board": next_board_tensor,  # dtype = float32 & shape = (72,)
                 "params": tensordict["params"],
@@ -570,6 +575,8 @@ class ChessEnv(EnvBase):
             },
             tensordict.shape,
         )
+        tensordict["next"] = next_td
+        return tensordict, curr_env_state
 
     def _set_seed(self, seed: Optional[int]):
         """
