@@ -1,0 +1,3 @@
+[run]
+source = src
+omit = __init__.py, src/eval/metric_completion.py, src/eval/model_completion.py, src/train/leela.py, src/train/window_autoreg.py, src/train_rl/train_rl.py
