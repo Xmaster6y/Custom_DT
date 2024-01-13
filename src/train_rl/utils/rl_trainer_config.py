@@ -70,7 +70,6 @@ class RLTrainerConfig:
         stockfish_gameplay_depth: int,
         resume_from_checkpoint: bool,
         checkpoint_path: str,
-        checkpointing_steps_ratio: float,
         state_dim: int,
         act_dim: int,
         temperature: float,
@@ -98,7 +97,6 @@ class RLTrainerConfig:
             stockfish_gameplay_depth: depth to use for Stockfish gameplay.
             resume_from_checkpoint: whether to resume from a checkpoint.
             checkpoint_path: path to the checkpoint.
-            checkpointing_steps_ratio: ratio of steps for saving the model during a training run.
             state_dim: dimension of state space.
             act_dim: dimension of action space.
             temperature: temperature for softmax.
@@ -122,7 +120,6 @@ class RLTrainerConfig:
         self.stockfish_gameplay_depth = stockfish_gameplay_depth
         self.resume_from_checkpoint = resume_from_checkpoint
         self.checkpoint_path = checkpoint_path
-        self.checkpointing_steps_ratio = checkpointing_steps_ratio
         self.state_dim = state_dim
         self.act_dim = act_dim
         self.temperature = temperature

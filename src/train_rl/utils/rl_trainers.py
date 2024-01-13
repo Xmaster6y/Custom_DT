@@ -122,7 +122,7 @@ class DecisionTransformerREINFORCETrainer:
         pbar = tqdm.tqdm(range(self.cfg.num_train_epochs))
 
         logging_steps = int(1 / self.cfg.logging_steps_ratio)
-        checkpointing_steps = int(1 / self.cfg.checkpointing_steps_ratio)
+        checkpointing_steps = int(1 / self.cfg.save_steps_ratio)
         logs = {"loss": [], "rolling_av_loss": []}
 
         if self.cfg.lr_scheduler:
