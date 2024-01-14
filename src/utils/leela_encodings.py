@@ -1,9 +1,11 @@
 """
-File containing the encodings for the Leela Chess Zero engine.
+Encodes a dataset of chess games into a form suitable for the Leela Chess Zero engine.
+
+These are the primary encodings used throughout the project.
 """
 
 import re
-from typing import Callable, Tuple
+from typing import Callable, Dict, Tuple
 
 import chess
 import torch
@@ -15,9 +17,30 @@ def board_to_tensor13x8x8(
     board: chess.Board,
     us_them: Tuple[bool, bool],
     repetition: int = 2,
-):
+) -> torch.Tensor:
     """
     Converts a chess.Board object to a 13x8x8 tensor.
+
+    The first 12 planes are the ordinal positions of the pieces. The 13th plane is 1 if the position
+    has been repeated n or more times, 0 otherwise. This board representation does not exlicitly
+    encode castling rights, en passant, or the halfmove clock.
+
+    Args:
+        board: The chess.Board object to convert.
+        us_them: A tuple of booleans indicating whether the board is from the perspective of the white player.
+            (True, False) would represent a game from the perspective of the white player and vice versa.
+        repetition: The number of times the position must be repeated for the 13th plane to be 1.
+
+    Returns:
+        A 13x8x8 tensor representing the board.
+
+    Typical usage example:
+    ```python
+    >>> import chess
+    >>> from src.utils.leela_encodings import board_to_tensor13x8x8
+    >>> board = chess.Board()
+    >>> board_to_tensor13x8x8(board, (True, False))
+    ```
     """
     us, them = us_them
     plane_orders = {chess.WHITE: "PNBRQK", chess.BLACK: "pnbrqk"}
@@ -48,9 +71,34 @@ def board_to_tensor(
     us_them: Tuple[bool, bool],
     num_past_states: int = 0,
     flip: bool = True,
-):
+) -> torch.Tensor:
     """
     Converts a chess.Board object to a tensor.
+
+    The first 12 planes are the ordinal positions of the pieces. The 13th plane is 1 if the position has been
+    repeated n or more times, 0 otherwise. The 14th-17th planes encode castling rights. The player to move
+    is encoded in the 18th plane. The 19th plane is the halfmove clock.
+
+    Args:
+        board: The chess.Board object to convert.
+        us_them: A tuple of booleans indicating whether the board is from the perspective of the white player.
+            (True, False) would represent a game from the perspective of the white player and vice versa.
+        num_past_states: The number of past states to include in the tensor. Not implemented.
+        flip: Whether to flip the board if the black player is to move.
+
+    Returns:
+        A 20x8x8 tensor representing the board.
+
+    Raises:
+        NotImplementedError: If num_past_states > 0.
+
+    Typical usage example:
+    ```python
+    >>> import chess
+    >>> from src.utils.leela_encodings import board_to_tensor
+    >>> board = chess.Board()
+    >>> board_to_tensor(board, (True, False))
+    ```
     """
     if num_past_states > 0:
         raise NotImplementedError("This function does not support past states.")
@@ -83,7 +131,23 @@ def encode_move(
     us_them: Tuple[bool, bool],
 ) -> int:
     """
-    Converts a chess.Move object to an index.
+    Converts a chess.Move object to an index in the 1858-dimensional action space.
+
+    Args:
+        move: The chess.Move object to convert.
+        us_them: A tuple of booleans indicating whether the move is from the perspective of the white player.
+            (True, False) would represent a game from the perspective of the white player and vice versa.
+
+    Returns:
+        An integer index in the 1858-dimensional action space.
+
+    Typical usage example:
+    ```python
+    >>> import chess
+    >>> from src.utils.leela_encodings import encode_move
+    >>> move = chess.Move.from_uci("e2e4")
+    >>> encode_move(move, (True, False))
+    ```
     """
     us, _ = us_them
     from_square = move.from_square
@@ -111,6 +175,24 @@ def decode_move(
 ) -> chess.Move:
     """
     Converts an index to a chess.Move object.
+
+    Args:
+        index: The index to convert.
+        us_them: A tuple of booleans indicating whether the move is from the perspective of the white player.
+            (True, False) would represent a game from the perspective of the white player and vice versa.
+        board: The current chess.Board object from which the move is being made.
+
+    Returns:
+        A chess.Move object.
+
+    Typical usage example:
+    ```python
+    >>> import chess
+    >>> from src.utils.leela_encodings import decode_move
+    >>> move_idx = 293
+    >>> board = chess.Board()
+    >>> decode_move(move_idx, (True, False), board)
+    ```
     """
     us, _ = us_them
     us_uci_move = POLICY_INDEX[index]
@@ -132,9 +214,30 @@ def encode_seq(
     move_to_index: Callable[[chess.Move, Tuple[bool, bool]], int],
     return_last_board: bool = False,
     position_evaluator: Callable[[chess.Board, Tuple[bool, bool]], float] = None,
-):
+) -> Dict[str, dict]:
     """
-    Converts a sequence of moves in algebraic notation to a sequence of move indices.
+    Converts a sequence of moves in algebraic notation to a dictionary encoding the moves, the board states
+    generated by the moves, the end rewards of the game, the Stockfish evaluations of the board states, and
+    optionally the last board.
+
+    Args:
+        seq: The sequence of moves in algebraic notation.
+        board_to_tensor: A function that converts a chess.Board object to a tensor.
+        move_to_index: A function that converts a chess.Move object to an index in the action space.
+        return_last_board: Whether to return the last board state.
+        position_evaluator: A function that provides the Stockfish evaluation of a board position.
+
+    Returns:
+        A dictionary of dictionaries of white and black move tensors, board states, end rewards, Stockfish evaluations,
+        and optionally the last board.
+
+    Typical usage example:
+    ```python
+    >>> from src.utils.leela_encodings import encode_seq
+    >>> from src.utils.leela_constants import board_to_tensor, encode_move
+    >>> seq = "1. d4 d5 2. c4 e6 3. e3 Nd7 4. cxd5 exd5 5. Nc3 Ngf6 6. h3 Bd6"
+    >>> encode_seq(seq, board_to_tensor, encode_move)
+    ```
     """
     board = chess.Board()
     move_indices = {
@@ -189,9 +292,27 @@ def format_tensors(
     window_start: int = 0,
     position_evaluations: list = None,
     shaping_rewards: bool = False,
-):
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
-    Converts an encoded sequence to a dictionary of tensors.
+    Formats chess game sequence data into tensors suitable for modeling with the Decision Transformer.
+    Primarily used by the format_inputs function.
+
+    Args:
+        move_indices: A list of move indices.
+        board_tensors: A list of board tensors.
+        end_reward: A tuple of end rewards for the white and black players.
+        window_size: The length of the sequence to model.
+        device: The device to store the tensors on.
+        window_start: The starting index of the sequence to model.
+        position_evaluations: A list of Stockfish evaluations of the board positions.
+        shaping_rewards: Whether to use Stockfish evaluation shaping rewards.
+
+    Returns:
+        A tuple of tensors for modeling with the Decision Transformer.
+
+    Raises:
+        ValueError: If shaping rewards but either a.) the position evaluator provided to the encode_seq function has
+            an error or b.) the position evaluator provided to the encode_seq function is None.
     """
     seq_len = len(move_indices)
     if window_start + window_size > seq_len:
@@ -238,9 +359,33 @@ def format_inputs(
     return_labels: bool = False,
     one_player: bool = True,
     shaping_rewards: bool = False,
-):
+) -> Dict[str, torch.Tensor]:
     """
-    Converts an encoded sequence to a dictionary of tensors.
+    Converts an encoded sequence dictionary to a dictionary of tensors suitable for modeling with the Decision
+    Transformer. This dictionary stores the states, actions, returns to go, attention masks, and timesteps
+    of the sequence.
+
+    Args:
+        encoded_seq: The encoded sequence dictionary.
+        device: The device to store the tensors on.
+        window_size: The length of the sequence to model.
+        generator: A torch.Generator object to use for random number generation.
+        return_labels: Whether to return the actions as labels.
+        one_player: Whether to model one player or both players.
+        shaping_rewards: Whether to use Stockfish evaluation shaping rewards.
+
+    Returns:
+        A dictionary of tensors for modeling with the Decision Transformer.
+
+    Typical usage example:
+    ```python
+    >>> import torch
+    >>> from src.utils.leela_encodings import encode_seq, format_inputs
+    >>> from src.utils.leela_constants import board_to_tensor, encode_move
+    >>> seq = "1. d4 d5 2. c4 e6 3. e3 Nd7 4. cxd5 exd5 5. Nc3 Ngf6 6. h3 Bd6"
+    >>> encoded_seq = encode_seq(seq, board_to_tensor, encode_move)
+    >>> format_inputs(encoded_seq, torch.device("cpu"), 10, torch.Generator())
+    ```
     """
     move_indices = encoded_seq["move_indices"]
     board_tensors = encoded_seq["board_tensors"]

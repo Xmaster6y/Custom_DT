@@ -1,5 +1,5 @@
 """
-Encoding functions for converting between different representations of the board.
+(Deprecated) Encoding functions for converting between different representations of the board.
 """
 
 import re
@@ -136,6 +136,8 @@ def decode_move(move_index: int, board: chess.Board) -> chess.Move:
         to_square, from_square = divmod(move_index, 64)
         mv = chess.Move(from_square, to_square)
         piece = board.piece_at(from_square)
+        if piece is None:  # from square is unoccupied
+            return None
         to_rank = to_square // 8
         if piece.piece_type == chess.PAWN and to_rank in [0, 7]:
             mv.promotion = chess.QUEEN
@@ -158,6 +160,10 @@ def decode_move(move_index: int, board: chess.Board) -> chess.Move:
 def piece_to_index(piece: str):
     warnings.warn("This function is deprecated. Use leela encodings.", DeprecationWarning)
     return "kqrbnp0PNBRQK".index(piece) - 6
+
+
+def index_to_piece(index: int):
+    return "kqrbnp0PNBRQK"[index + 6]
 
 
 def board_to_64tensor(board: chess.Board):
@@ -204,7 +210,74 @@ def board_to_68tensor(board: chess.Board):
     ordinal_board.append(board.has_queenside_castling_rights(chess.WHITE))
     ordinal_board.append(board.has_kingside_castling_rights(chess.BLACK))
     ordinal_board.append(board.has_queenside_castling_rights(chess.BLACK))
+    return torch.tensor(ordinal_board, dtype=torch.int8)
+
+
+def board_to_72tensor(board: chess.Board):
+    """
+    Converts a chess.Board object to a 72 tensor.
+    64 squares + 1 turn + 4 castling rights + 1 en passant square
+        + 1 halfmove clock + 1 fullmove number
+    Format: [a1, b1, c1,..., turn==white, white kingside CR, white queenside CR,
+        black kingside CR, black queenside CR, en passant square index (or 0 if None),
+        halfmove clock, fullmove number]
+    """
+    fen_rep = board.fen().split(" ")[0]
+    fen_rep = re.sub(r"(\d)", lambda m: "0" * int(m.group(1)), fen_rep)
+    rows = fen_rep.split("/")
+    rev_rows = rows[::-1]
+    ordered_fen = "".join(rev_rows)
+    ordinal_board = list(map(piece_to_index, ordered_fen))
+    ordinal_board.append(board.turn)
+    ordinal_board.append(board.has_kingside_castling_rights(chess.WHITE))
+    ordinal_board.append(board.has_queenside_castling_rights(chess.WHITE))
+    ordinal_board.append(board.has_kingside_castling_rights(chess.BLACK))
+    ordinal_board.extend(
+        (
+            board.has_queenside_castling_rights(chess.BLACK),
+            board.ep_square if board.ep_square is not None else 0,
+            board.halfmove_clock,
+            board.fullmove_number,
+        )
+    )
     return torch.tensor(ordinal_board, dtype=torch.float)
+
+
+def complete_tensor_to_fen(board_tensor: torch.Tensor):
+    board_tensor = board_tensor.to(dtype=torch.int8)
+    rows = board_tensor[:64].reshape(8, 8)
+    info = board_tensor[64:]
+    rows = rows.flip(0)
+    fen = ""
+    for row_idx, row in enumerate(rows):
+        empty = 0
+        for square in row:
+            if square == 0:
+                empty += 1
+            else:
+                if empty > 0:
+                    fen += str(empty)
+                    empty = 0
+                fen += index_to_piece(int(square))
+        if empty > 0:
+            fen += str(empty)
+        if row_idx < 7:
+            fen += "/"
+    fen += " w " if info[0] == 1 else " b "
+    if info[1] == 1:
+        fen += "K"
+    if info[2] == 1:
+        fen += "Q"
+    if info[3] == 1:
+        fen += "k"
+    if info[4] == 1:
+        fen += "q"
+    if info[1] + info[2] + info[3] + info[4] == 0:
+        fen += "-"
+    fen += f" {chess.square_name(info[5])}" if info[5] != 0 else " -"
+    fen += f" {int(info[6])}"
+    fen += f" {int(info[7])}"
+    return fen
 
 
 def board_to_772tensor(board: chess.Board):
