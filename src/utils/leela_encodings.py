@@ -28,6 +28,7 @@ def board_to_tensor13x8x8(
     Args:
         board: The chess.Board object to convert.
         us_them: A tuple of booleans indicating whether the board is from the perspective of the white player.
+            (True, False) would represent a game from the perspective of the white player and vice versa.
         repetition: The number of times the position must be repeated for the 13th plane to be 1.
 
     Returns:
@@ -81,6 +82,7 @@ def board_to_tensor(
     Args:
         board: The chess.Board object to convert.
         us_them: A tuple of booleans indicating whether the board is from the perspective of the white player.
+            (True, False) would represent a game from the perspective of the white player and vice versa.
         num_past_states: The number of past states to include in the tensor. Not implemented.
         flip: Whether to flip the board if the black player is to move.
 
@@ -134,6 +136,7 @@ def encode_move(
     Args:
         move: The chess.Move object to convert.
         us_them: A tuple of booleans indicating whether the move is from the perspective of the white player.
+            (True, False) would represent a game from the perspective of the white player and vice versa.
 
     Returns:
         An integer index in the 1858-dimensional action space.
@@ -176,6 +179,7 @@ def decode_move(
     Args:
         index: The index to convert.
         us_them: A tuple of booleans indicating whether the move is from the perspective of the white player.
+            (True, False) would represent a game from the perspective of the white player and vice versa.
         board: The current chess.Board object from which the move is being made.
 
     Returns:

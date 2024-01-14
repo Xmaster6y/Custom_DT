@@ -14,6 +14,7 @@ import src.utils.translate as translate
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
 from src.train_rl.utils.rl_trainer_config import RLTrainerConfig
 from src.utils.dataset import OnePlayerChessDataset, TwoPlayersChessDataset
+from src.utils.leela_constants import ACT_DIM, STATE_DIM
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 DIRECTORY = pathlib.Path(__file__).parent.absolute()
@@ -136,7 +137,7 @@ def RL_deprec_encoding_model():
 
 
 @pytest.fixture(scope="module")
-def RL_deprec_encoding_trainer_cfg():
+def RL_trainer_cfg():
     cwd = os.getcwd()
     yield RLTrainerConfig(
         output_dir=f"{cwd}\\weights\\test_training",
@@ -157,8 +158,20 @@ def RL_deprec_encoding_trainer_cfg():
         stockfish_gameplay_depth=2,
         resume_from_checkpoint=False,
         checkpoint_path=None,
-        state_dim=72,
-        act_dim=4672,
+        state_dim=STATE_DIM,
+        act_dim=ACT_DIM,
         temperature=1.0,
         lr_scheduler=False,
     )
+
+
+@pytest.fixture(scope="module")
+def RL_leela_encoding_model():
+    conf = DecisionTransformerConfig(
+        state_dim=STATE_DIM,
+        act_dim=ACT_DIM,
+        n_layers=6,
+        n_heads=4,
+        hidden_size=64 * 4,
+    )
+    yield DecisionTransformerModel(conf)

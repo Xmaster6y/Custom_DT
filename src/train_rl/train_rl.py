@@ -34,7 +34,7 @@ Note:
 Typical usage example:
 
 ```bash
->>> python src.train_rl.train_rl.py --training True --no-debug --n-epochs 10000 --lr 1e-4
+>>> python -m src.train_rl.train_rl --training --no-debug --n-epochs 10000 --lr 1e-4
 ```
 """
 import argparse
@@ -46,6 +46,7 @@ from src.metric.stockfish import StockfishMetric
 from src.models.decision_transformer import DecisionTransformerConfig, DecisionTransformerModel
 from src.train_rl.utils.rl_trainer_config import RLTrainerConfig
 from src.train_rl.utils.rl_trainers import DecisionTransformerREINFORCETrainer
+from src.utils.leela_constants import ACT_DIM, STATE_DIM
 
 parser = argparse.ArgumentParser("train-rl")
 # Meta
@@ -72,9 +73,6 @@ parser.add_argument("--checkpointing-steps-ratio", type=float, default=0.1)
 parser.add_argument("--output-root", type=str, default=os.getcwd())
 parser.add_argument("--temperature", type=float, default=1.0)
 parser.add_argument("--lr-scheduler", action=argparse.BooleanOptionalAction, default=False)
-# Model
-parser.add_argument("--state-dim", type=int, default=72)
-parser.add_argument("--act-dim", type=int, default=4672)
 
 args = parser.parse_args()
 
@@ -103,8 +101,8 @@ if args.use_stockfish_eval:
 
 try:  # To be sure to close stockfish engine if an error occurs
     conf = DecisionTransformerConfig(
-        state_dim=args.state_dim,
-        act_dim=args.act_dim,
+        state_dim=STATE_DIM,
+        act_dim=ACT_DIM,
         n_layers=args.layers,
         n_heads=args.heads,
         hidden_size=64 * args.heads,
@@ -131,8 +129,8 @@ try:  # To be sure to close stockfish engine if an error occurs
         stockfish_gameplay_depth=args.stockfish_gameplay_depth,
         resume_from_checkpoint=args.resume_from_checkpoint,
         checkpoint_path=args.checkpoint_path,
-        state_dim=args.state_dim,
-        act_dim=args.act_dim,
+        state_dim=STATE_DIM,
+        act_dim=ACT_DIM,
         temperature=args.temperature,
         lr_scheduler=args.lr_scheduler,
     )
@@ -148,5 +146,4 @@ try:  # To be sure to close stockfish engine if an error occurs
         evaluation = trainer.evaluate()
         print(evaluation)
 finally:
-    if stockfish_metric is not None:
-        stockfish_metric.engine.quit()
+    print("Complete")

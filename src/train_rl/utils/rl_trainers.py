@@ -18,7 +18,8 @@ from torchrl.envs.utils import step_mdp
 
 from src.models.decision_transformer.modeling_decision_transformer import DecisionTransformerModel
 from src.train_rl.utils.rl_trainer_config import RLTrainerConfig
-from src.utils import translate
+from src.utils import leela_encodings
+from src.utils.leela_constants import ACT_DIM, STATE_DIM
 
 
 class DecisionTransformerREINFORCETrainer:
@@ -164,6 +165,7 @@ class DecisionTransformerREINFORCETrainer:
 
             if self.cfg.lr_scheduler:
                 scheduler.step()
+
         self.env.engine.quit()
         self.env.stockfish_metric.engine.quit()
         self.log(logs)
@@ -188,8 +190,10 @@ class DecisionTransformerREINFORCETrainer:
         action_distros = []
         for t in count():
             if t > 0:
-                state_seq = torch.cat([data["board"][0].unsqueeze(0), data["next"]["board"]], dim=0).unsqueeze(
-                    0
+                state_seq = torch.flatten(
+                    torch.cat([data["board"][0].unsqueeze(0), data["next"]["board"]], dim=0).unsqueeze(0),
+                    start_dim=2,
+                    end_dim=-1,
                 )  # needs dtype = float32 & shape = (1, seq_len, cfg.state_dim)
                 action_seq = torch.cat([data["action"], unused_action], dim=0).unsqueeze(
                     0
@@ -199,7 +203,9 @@ class DecisionTransformerREINFORCETrainer:
                 )  # needs dtype = float32 & shape = (1, seq_len, 1)
                 timestep_seq = torch.arange(t + 1).unsqueeze(0)  # needs dtype = int64 & shape = (1,t)
             else:
-                state_seq = data["board"].unsqueeze(0)  # dtype = float32 & shape = (1, 1, cfg.state_dim)
+                state_seq = torch.flatten(
+                    data["board"].unsqueeze(0), start_dim=2, end_dim=-1
+                )  # dtype = float32 & shape = (1, 1, cfg.state_dim)
                 action_seq = unused_action.unsqueeze(0)  # dtype = float32 & shape = (1, 1, self.cfg.act_dim)
                 rtg_seq = starting_return_to_go.unsqueeze(0)  # dtype = float32 & shape = (1, 1, 1)
                 timestep_seq = torch.zeros((1, 1), dtype=torch.int64)  # dtype = int64 & shape = (1,1)
@@ -228,6 +234,7 @@ class DecisionTransformerREINFORCETrainer:
             data = torch.cat([data, _data.expand(1).contiguous()], dim=0) if t > 0 else _data.expand(1).contiguous()
 
             _data = step_mdp(_data, keep_other=True)
+
             if _data["done"]:
                 _data, curr_env_state = self.env.reset(_data)
                 break
@@ -338,8 +345,8 @@ class ChessEnv:
         seed=None,
         device="cpu",
         batch_size=None,
-        state_dim=72,
-        act_dim=4672,
+        state_dim=STATE_DIM,
+        act_dim=ACT_DIM,
         gameplay_depth=2,
         engine=None,
         stockfish_metric=None,
@@ -485,22 +492,22 @@ class ChessEnv:
             chess board object.
 
         Raises:
-            RuntimeError: an error occurs if the state dimension is not 72.
+            RuntimeError: an error occurs if the state dimension is not the Leela state dimension.
         """
         if tensordict is None or tensordict.is_empty():
             # if no tensordict is passed, we generate a single set of hyperparameters
             # Otherwise, we assume that the input tensordict contains all the relevant
             # parameters to get started.
             tensordict = self.gen_params(device=self.device, batch_size=batch_size)
-        if self.state_dim == 72:
-            board = translate.board_to_72tensor(chess.Board())
+        if self.state_dim == STATE_DIM:
+            board = leela_encodings.board_to_tensor(chess.Board(), us_them=(True, False))
         else:
-            raise RuntimeError("state_dim must be 72")
+            raise RuntimeError(f"state_dim must be {STATE_DIM}")
 
         return (
             TensorDict(
                 {
-                    "board": board,  # dtype = float32 & shape = (72,)
+                    "board": board,  # dtype = float32 & shape = (STATE_DIM,)
                     "params": tensordict["params"],
                     "done": torch.tensor([0], dtype=torch.bool),
                 },
@@ -531,16 +538,19 @@ class ChessEnv:
         board_tensor, move = (
             tensordict["board"],
             tensordict["action"],
-        )  # dtype = float32 & shape = (72,), (self.cfg.act_dim,)
+        )  # dtype = float32 & shape = (self.cfg.state_dim,), (self.cfg.act_dim,)
         env_gameplay_depth = tensordict["params", "env_gameplay_depth"]
 
-        proposed_move = translate.decode_move(torch.argmax(move).item(), curr_env_state)
-        # from square is unoccupied - not even picking up a piece: should be punished severely
-        if proposed_move is None:
+        proposed_move = leela_encodings.decode_move(
+            torch.argmax(move).item(), us_them=(True, False), board=curr_env_state
+        )
+        # from square is not occupied by a white piece: should be punished severely
+        proposed_from_piece = curr_env_state.piece_at(proposed_move.from_square)
+        if proposed_from_piece is None or proposed_from_piece.color != chess.WHITE:
             next_board_tensor = board_tensor
             reward_tensor = torch.tensor([10], dtype=torch.float32)
             done = torch.tensor([1], dtype=torch.bool)
-        # proposing a move with an actual piece, but not a legal move: should be punished less severely
+        # proposing a move with a white piece, but not a legal move: should be punished less severely
         elif proposed_move not in list(curr_env_state.legal_moves):
             next_board_tensor = board_tensor
             reward_tensor = torch.tensor([7], dtype=torch.float32)
@@ -555,7 +565,7 @@ class ChessEnv:
                 done = torch.tensor([0], dtype=torch.bool)
                 next_move = self.engine.play(curr_env_state, chess.engine.Limit(depth=env_gameplay_depth)).move
                 curr_env_state.push(next_move)
-            next_board_tensor = translate.board_to_72tensor(curr_env_state.copy()).float()
+            next_board_tensor = leela_encodings.board_to_tensor(board=curr_env_state.copy(), us_them=(True, False))
             reward_tensor = torch.tensor(
                 [
                     1

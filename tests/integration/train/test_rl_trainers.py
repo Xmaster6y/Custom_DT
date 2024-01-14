@@ -15,13 +15,11 @@ torch.set_default_device(DEVICE)
 
 
 class TestDecisionTransformerREINFORCETrainer:
-    def test_training_deprec_encodings(self, RL_deprec_encoding_model, RL_deprec_encoding_trainer_cfg):
+    def test_training(self, RL_leela_encoding_model, RL_trainer_cfg):
         stockfish_metric = StockfishMetric()
-        RL_deprec_encoding_trainer_cfg.stockfish_metric = stockfish_metric
+        RL_trainer_cfg.stockfish_metric = stockfish_metric
 
-        trainer = DecisionTransformerREINFORCETrainer(
-            cfg=RL_deprec_encoding_trainer_cfg, model=RL_deprec_encoding_model, device=DEVICE
-        )
+        trainer = DecisionTransformerREINFORCETrainer(cfg=RL_trainer_cfg, model=RL_leela_encoding_model, device=DEVICE)
         trainer.train()
 
         cwd = os.getcwd()
