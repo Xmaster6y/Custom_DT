@@ -1,0 +1,32 @@
+Bootstrap: docker
+From: python:3.9.18
+
+%files
+  ./src /opt/src
+  ./data /opt/data
+  ./weights /opt/weights
+  ./logging /opt/logging
+  ./stockfish-source /opt/stockfish-source
+  ./pyproject.toml /opt/pyproject.toml
+  ./poetry.lock /opt/poetry.lock
+
+%environment
+  export "PATH=/opt/.venv/bin:$PATH"
+
+%post
+  python -m pip install poetry
+
+  cd /opt
+  python -m poetry config virtualenvs.in-project true
+  python -m poetry install
+
+%runscript
+  cd /opt
+  cp -r /opt/weights /opt/output
+  cp -r /opt/logging /opt/output
+  python -m src.train.leela --training --no-debug \
+    --stockfish-eval-depth=5 --use-stockfish-eval \
+    --window-size=20 --output-root output/ \
+    --layers=6 --train-batch-size=2000 --eval-batch-size=5000 \
+    --logging-steps-ratio=0.01 --eval-steps-ratio=0.1 \
+    --resume-from-checkpoint --n-epochs=10
