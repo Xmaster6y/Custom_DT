@@ -470,7 +470,7 @@ class ChessEnv:
             shape=td.shape,
         )
 
-    def reset(self, tensordict: TensorDict = None, batch_size=None) -> Tuple[TensorDict, chess.Board()]:
+    def reset(self, tensordict: TensorDict = None, batch_size=None) -> Tuple[TensorDict, chess.Board]:
         """
         Resets the environment by generating a starting chess board.
 
@@ -508,7 +508,7 @@ class ChessEnv:
             chess.Board(),
         )
 
-    def step(self, tensordict: TensorDict, curr_env_state: chess.Board()) -> Tuple[TensorDict, chess.Board()]:
+    def step(self, tensordict: TensorDict, curr_env_state: chess.Board) -> Tuple[TensorDict, chess.Board]:
         """
         Performs a single environment step. If the action taken by the model is not an intelligble
         move (from-square is not occupied), the return-to-go will be 10 and the game will terminate.
