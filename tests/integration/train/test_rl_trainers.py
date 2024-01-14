@@ -23,7 +23,6 @@ class TestDecisionTransformerREINFORCETrainer:
             cfg=RL_deprec_encoding_trainer_cfg, model=RL_deprec_encoding_model, device=DEVICE
         )
         trainer.train()
-        stockfish_metric.engine.quit()
 
         cwd = os.getcwd()
         assert os.path.exists(f"{cwd}\\logging\\test_training.txt")

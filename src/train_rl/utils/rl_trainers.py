@@ -164,6 +164,8 @@ class DecisionTransformerREINFORCETrainer:
 
             if self.cfg.lr_scheduler:
                 scheduler.step()
+        self.env.engine.quit()
+        self.env.stockfish_metric.engine.quit()
         self.log(logs)
 
     def one_game_rollout(self) -> Tuple[TensorDict, list]:
