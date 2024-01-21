@@ -11,10 +11,15 @@ Typical usage example:
 >>> config = RLTrainerConfig(
 ...     output_dir="weights/debug",
 ...     logging_dir="logging/debug",
-...     figures_dir="figures/debug",
 ...     overwrite_output_dir=True,
 ...     ...)
 >>> trainer = DecisionTransformerREINFORCETrainer(config, model, device)
+>>> trainer.train()
+```
+```bash
+>>> # in terminal
+>>> tensorboard --logdir logging
+>>> # don't forget to clean up the logging and weights directories after training!
 ```
 """
 
@@ -28,7 +33,6 @@ class RLTrainerConfig:
     Attributes:
         output_dir: path to the output directory.
         logging_dir: path to the logging directory.
-        figures_dir: path to the figures directory.
         overwrite_output_dir: whether to overwrite the output directory.
         logging_steps_ratio: ratio of steps to log.
         eval_steps_ratio: ratio of steps to evaluate.
@@ -55,7 +59,6 @@ class RLTrainerConfig:
         self,
         output_dir: str,
         logging_dir: str,
-        figures_dir: str,
         overwrite_output_dir: bool,
         logging_steps_ratio: float,
         eval_steps_ratio: float,
@@ -83,7 +86,6 @@ class RLTrainerConfig:
         Args:
             output_dir: path to the output directory.
             logging_dir: path to the logging directory.
-            figures_dir: path to the figures directory.
             overwrite_output_dir: whether to overwrite the output directory.
             logging_steps_ratio: ratio of steps to log.
             eval_steps_ratio: ratio of steps to evaluate.
@@ -107,7 +109,6 @@ class RLTrainerConfig:
         """
         self.output_dir = output_dir
         self.logging_dir = logging_dir
-        self.figures_dir = figures_dir
         self.overwrite_output_dir = overwrite_output_dir
         self.logging_steps_ratio = logging_steps_ratio
         self.eval_steps_ratio = eval_steps_ratio

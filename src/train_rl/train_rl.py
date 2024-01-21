@@ -30,12 +30,15 @@ Arguments:
 
 Note:
     The RL trainer currently only supports the one player mode, dense reward setting.
-    Resuming from checkpoint is currently not supported. Evaluation mode is currently not supported.
+    Evaluation mode is currently not supported.
 
 Typical usage example:
 
 ```bash
->>> python -m src.train_rl.train_rl --training --no-debug --n-epochs 10000 --lr 1e-4
+>>> python -m src.train_rl.train_rl --training --debug --seed 4 --n-epochs 1000 --lr 1e-4 --output-root %cd%
+...    --resume-from-checkpoint --checkpoint-path "weights/debug_checkpt_e899.pt"
+>>> tensorboard --logdir logging
+>>> # don't forget to clean up the logging and weights directories after training!
 ```
 """
 import argparse
@@ -61,7 +64,7 @@ parser.add_argument("--heads", type=int, default=4)
 parser.add_argument("--name", type=str, default=None)
 parser.add_argument("--overwrite", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--n-epochs", type=int, default=100)
-parser.add_argument("--logging-steps-ratio", type=float, default=0.01)
+parser.add_argument("--logging-steps-ratio", type=float, default=0.05)
 parser.add_argument("--eval-steps-ratio", type=float, default=0.1)
 parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--one-player", action=argparse.BooleanOptionalAction, default=True)
@@ -71,7 +74,7 @@ parser.add_argument("--stockfish-eval-depth", type=int, default=6)
 parser.add_argument("--stockfish-gameplay-depth", type=int, default=2)
 parser.add_argument("--resume-from-checkpoint", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--checkpoint-path", type=str, default=None)
-parser.add_argument("--checkpointing-steps-ratio", type=float, default=0.1)
+parser.add_argument("--checkpointing-steps-ratio", type=float, default=0.01)
 parser.add_argument("--output-root", type=str, default=os.getcwd())
 parser.add_argument("--temperature", type=float, default=1.0)
 parser.add_argument("--lr-scheduler", action=argparse.BooleanOptionalAction, default=False)
@@ -91,11 +94,9 @@ else:
 if args.debug:
     OUTPUT_DIR = f"{args.output_root}\\weights\\debug"
     LOGGING_DIR = f"{args.output_root}\\logging\\debug"
-    FIGURES_DIR = f"{args.output_root}\\figures\\debug"
 else:
     OUTPUT_DIR = f"{args.output_root}\\weights\\{NAME}"
     LOGGING_DIR = f"{args.output_root}\\logging\\{NAME}"
-    FIGURES_DIR = f"{args.output_root}\\figures\\{NAME}"
 
 
 if args.use_stockfish_eval:
@@ -115,7 +116,6 @@ try:  # To be sure to close stockfish engine if an error occurs
     trainer_cfg = RLTrainerConfig(
         output_dir=OUTPUT_DIR,
         logging_dir=LOGGING_DIR,
-        figures_dir=FIGURES_DIR,
         overwrite_output_dir=args.debug or args.overwrite,
         logging_steps_ratio=args.logging_steps_ratio,
         eval_steps_ratio=args.eval_steps_ratio,

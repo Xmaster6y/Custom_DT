@@ -142,7 +142,6 @@ def RL_trainer_cfg():
     yield RLTrainerConfig(
         output_dir=f"{cwd}\\weights\\test_training",
         logging_dir=f"{cwd}\\logging\\test_training",
-        figures_dir=f"{cwd}\\figures\\test_training",
         overwrite_output_dir=True,
         logging_steps_ratio=0.2,
         eval_steps_ratio=0.1,

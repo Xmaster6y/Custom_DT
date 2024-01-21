@@ -23,11 +23,7 @@ class TestDecisionTransformerREINFORCETrainer:
         trainer.train()
 
         cwd = os.getcwd()
-        assert os.path.exists(f"{cwd}\\logging\\test_training.txt")
-        assert os.path.exists(f"{cwd}\\figures\\test_training.png")
         assert os.path.exists(f"{cwd}\\weights\\test_training_checkpt_e4.pt")
         assert os.path.exists(f"{cwd}\\weights\\test_training_checkpt_e9.pt")
-        os.remove(f"{cwd}\\logging\\test_training.txt")
-        os.remove(f"{cwd}\\figures\\test_training.png")
         os.remove(f"{cwd}\\weights\\test_training_checkpt_e4.pt")
         os.remove(f"{cwd}\\weights\\test_training_checkpt_e9.pt")

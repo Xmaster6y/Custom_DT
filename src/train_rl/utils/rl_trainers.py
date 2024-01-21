@@ -9,10 +9,10 @@ from typing import Optional, Tuple
 
 import chess
 import chess.engine
-import matplotlib.pyplot as plt
 import torch
 import tqdm
 from tensordict.tensordict import TensorDict, TensorDictBase
+from torch.utils.tensorboard import SummaryWriter
 from torchrl.data import BoundedTensorSpec, CompositeSpec, UnboundedContinuousTensorSpec
 from torchrl.envs.utils import step_mdp
 
@@ -28,7 +28,8 @@ class DecisionTransformerREINFORCETrainer:
 
     This trainer can be used for training and evaluation of the Decision Transformer
     using Leela chess game encodings. The trainer can save and load model checkpoints, and
-    will log training and evaluation metrics to a text file.
+    will log training loss to a tensorboard file. You can open the tensorboard file using command
+    `tensorboard --logdir logging` in the terminal.
 
     Attributes:
         cfg: configuration object for the trainer.
@@ -37,7 +38,7 @@ class DecisionTransformerREINFORCETrainer:
         env: environment for RL training, specifically the agent's Stockfish opponent.
         engine: Stockfish engine for evaluation.
         checkpoint_dict: dictionary containing the model state dictionary, optimizer state dictionary,
-            and loss at the time of the latest checkpoint.
+            and epoch at the time of the latest checkpoint.
 
     Notes:
         01/21/2023: supports only one-player, dense reward setting. It is undecided whether this is temporary.
@@ -85,8 +86,9 @@ class DecisionTransformerREINFORCETrainer:
     def train(self):
         """
         Trains the Decision Transformer model using the REINFORCE algorithm. The environment
-        used for training is a Stockfish opponent in a chess game. The training loss will be
-        logged to a text file, and the rolling average loss can be plotted.
+        used for training is a Stockfish opponent in a chess game. The trainer can save and load model checkpoints,
+        and will log training loss to a tensorboard file. You can open the tensorboard file using command
+        `tensorboard --logdir logging` in the terminal.
 
         Notes:
             01/21/2023: supports only one-player, dense reward setting. It is undecided whether this is temporary.
@@ -101,11 +103,15 @@ class DecisionTransformerREINFORCETrainer:
         >>> config = RLTrainerConfig(
         ...     output_dir="weights/debug",
         ...     logging_dir="logging/debug",
-        ...     figures_dir="figures/debug",
         ...     overwrite_output_dir=True,
         ...     ...)
         >>> trainer = DecisionTransformerREINFORCETrainer(config, model, device)
         >>> trainer.train()
+        ```
+        ```bash
+        >>> # in terminal
+        >>> tensorboard --logdir logging
+        >>> # don't forget to clean up the logging and weights directories after training!
         ```
         """
         self.env = ChessEnv(
@@ -119,12 +125,13 @@ class DecisionTransformerREINFORCETrainer:
             stockfish_metric=self.cfg.stockfish_metric,
             stockfish_eval_depth=self.cfg.stockfish_eval_depth,
         )
+
         optim = torch.optim.AdamW(self.model.parameters(), lr=self.cfg.lr)
         pbar = tqdm.tqdm(range(self.cfg.num_train_epochs))
+        writer = SummaryWriter(log_dir=self.cfg.logging_dir)
 
         logging_steps = int(1 / self.cfg.logging_steps_ratio)
         checkpointing_steps = int(1 / self.cfg.save_steps_ratio)
-        logs = {"loss": [], "rolling_av_loss": []}
 
         if self.cfg.lr_scheduler:
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, self.cfg.num_train_epochs)
@@ -136,13 +143,11 @@ class DecisionTransformerREINFORCETrainer:
                 total=self.cfg.num_train_epochs,
                 initial=self.checkpoint_dict["epoch"] + 1,
             )
-            logs["loss"] = self.checkpoint_dict["loss"]
-            logs["rolling_av_loss"] = self.checkpoint_dict["rolling_av_loss"]
 
         for i in pbar:
             rollout, distros = self.one_game_rollout()
             loss = [
-                distro.log_prob(action.argmax()) * traj_return
+                -distro.log_prob(action.argmax()) * traj_return
                 for distro, action, traj_return in zip(distros, rollout["action"], rollout["next"]["reward"])
             ]
             (sum(loss) / len(loss)).backward()
@@ -150,18 +155,15 @@ class DecisionTransformerREINFORCETrainer:
             optim.step()
             optim.zero_grad()
             pbar.set_description(f"loss: {loss}," f"rewards: {rollout['next']['reward']},")
-            logs["loss"].append((sum(loss) / len(loss)).item())
 
             if i % logging_steps == logging_steps - 1:
-                logs["rolling_av_loss"].append(sum(logs["loss"][-logging_steps:]) / logging_steps)
+                writer.add_scalar("loss", (sum(loss) / len(loss)).item(), i)
 
             if i % checkpointing_steps == checkpointing_steps - 1:
                 self.save_checkpoint(
                     epoch=i,
                     model_state_dict=self.model.state_dict(),
                     optim_state_dict=optim.state_dict(),
-                    loss=logs["loss"],
-                    rolling_av_loss=logs["rolling_av_loss"],
                 )
 
             if self.cfg.lr_scheduler:
@@ -169,7 +171,8 @@ class DecisionTransformerREINFORCETrainer:
 
         self.env.engine.quit()
         self.env.stockfish_metric.engine.quit()
-        self.log(logs)
+        writer.flush()
+        writer.close()
 
     def one_game_rollout(self) -> Tuple[TensorDict, list]:
         """
@@ -257,9 +260,7 @@ class DecisionTransformerREINFORCETrainer:
     def evaluate(self):
         raise NotImplementedError
 
-    def save_checkpoint(
-        self, epoch: int, model_state_dict: dict, optim_state_dict: dict, loss: list, rolling_av_loss: list
-    ):
+    def save_checkpoint(self, epoch: int, model_state_dict: dict, optim_state_dict: dict):
         """
         Saves a model checkpoint to a file.
 
@@ -267,65 +268,15 @@ class DecisionTransformerREINFORCETrainer:
             epoch: current epoch number.
             model_state_dict: state dictionary of the model.
             optim_state_dict: state dictionary of the optimizer.
-            loss: loss value at the current epoch.
         """
         torch.save(
             {
                 "epoch": epoch,
                 "model_state_dict": model_state_dict,
                 "optim_state_dict": optim_state_dict,
-                "loss": loss,
-                "rolling_av_loss": rolling_av_loss,
             },
             f"{self.cfg.output_dir}_checkpt_e{epoch}.pt",
         )
-
-    def plot(self, rolling_av_loss: list):
-        """
-        Plots the rolling average loss of a training run. The plot will be saved to a png file.
-
-        Args:
-            rolling_av_loss: list of rolling average loss values from a training run.
-
-        Notes:
-            This is a primitive plotting function that will be improved.
-        """
-        plt.figure(figsize=(10, 5))
-        plt.subplot(1, 2, 1)
-        n_points = len(rolling_av_loss) // 200
-        plt.plot(rolling_av_loss[:: n_points + 1])
-        plt.title("rolling av loss")
-        plt.xlabel("iteration")
-        plt.savefig(f"{self.cfg.figures_dir}.png")
-
-    def log(self, logs):
-        """
-        Logs the rolling average loss of a training run to a text file. Will also
-        plot the rolling average loss.
-
-        Args:
-            logs: dictionary of logs from a training run.
-
-        Notes:
-            This is a primitive logging function that will be improved.
-        """
-        action = "w" if self.cfg.overwrite_output_dir else "a"
-        with open(f"{self.cfg.logging_dir}.txt", action) as f:
-            f.write(f"run name: {self.cfg.run_name}\n")
-            f.write(f"lr: {self.cfg.lr}\n")
-            f.write(f"number of epochs: {self.cfg.num_train_epochs}\n")
-            f.write("rolling average loss: ")
-            for i in range(0, len(logs["rolling_av_loss"]), 10):
-                for log in logs["rolling_av_loss"][i : i + 10]:
-                    f.write(str(log))
-                    f.write(", ")
-                f.write("\n")
-            f.write("\n\n\n")
-            f.write("#" * 100)
-            f.write("#" * 100)
-            f.write("\n\n\n")
-            print("Done!")
-        self.plot(logs["rolling_av_loss"])
 
 
 class ChessEnv:
