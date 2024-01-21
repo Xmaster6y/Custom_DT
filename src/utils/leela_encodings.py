@@ -81,7 +81,7 @@ def board_to_tensor(
 
     Args:
         board: The chess.Board object to convert.
-        us_them: A tuple of booleans indicating whether the board is from the perspective of the white player.
+        us_them: A tuple of booleans indicating whether the board should be from the perspective of the white player.
             (True, False) would represent a game from the perspective of the white player and vice versa.
         num_past_states: The number of past states to include in the tensor. Not implemented.
         flip: Whether to flip the board if the black player is to move.

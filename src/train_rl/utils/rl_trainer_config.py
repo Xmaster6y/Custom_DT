@@ -38,7 +38,8 @@ class RLTrainerConfig:
         seed: random seed.
         lr: learning rate.
         one_player: whether the RL agent models one player or both players.
-        use_stock_fish_eval: whether to use Stockfish evaluations as shaping reward.
+        which_player: which player the RL agent models. Options are 'white', 'black', or 'random'.
+        use_stockfish_eval: whether to use Stockfish evaluations as shaping reward.
         stockfish_metric: metric to use for Stockfish evaluations.
         stockfish_eval_depth: depth to use for Stockfish evaluations.
         stockfish_gameplay_depth: depth to use for Stockfish gameplay.
@@ -64,7 +65,8 @@ class RLTrainerConfig:
         seed: int,
         lr: float,
         one_player: bool,
-        use_stock_fish_eval: bool,
+        which_player: str,
+        use_stockfish_eval: bool,
         stockfish_metric: StockfishMetric,
         stockfish_eval_depth: int,
         stockfish_gameplay_depth: int,
@@ -91,7 +93,8 @@ class RLTrainerConfig:
             seed: random seed.
             lr: learning rate.
             one_player: whether the RL agent models one player or both players.
-            use_stock_fish_eval: whether to use Stockfish evaluations as shaping reward.
+            which_player: which player the RL agent models. Options are 'white', 'black', or 'random'.
+            use_stockfish_eval: whether to use Stockfish evaluations as shaping reward.
             stockfish_metric: metric to use for Stockfish evaluations.
             stockfish_eval_depth: depth to use for Stockfish evaluations.
             stockfish_gameplay_depth: depth to use for Stockfish gameplay.
@@ -114,7 +117,8 @@ class RLTrainerConfig:
         self.seed = seed
         self.lr = lr
         self.one_player = one_player
-        self.use_stock_fish_eval = use_stock_fish_eval
+        self.which_player = which_player
+        self.use_stockfish_eval = use_stockfish_eval
         self.stockfish_metric = stockfish_metric
         self.stockfish_eval_depth = stockfish_eval_depth
         self.stockfish_gameplay_depth = stockfish_gameplay_depth

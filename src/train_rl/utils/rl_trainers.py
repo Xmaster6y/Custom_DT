@@ -40,7 +40,7 @@ class DecisionTransformerREINFORCETrainer:
             and loss at the time of the latest checkpoint.
 
     Notes:
-        01/04/2023: temporarily supports only one-player, dense reward setting from the perspective of white.
+        01/21/2023: supports only one-player, dense reward setting. It is undecided whether this is temporary.
     """
 
     def __init__(self, cfg: RLTrainerConfig, model: DecisionTransformerModel, device: str):
@@ -89,7 +89,7 @@ class DecisionTransformerREINFORCETrainer:
         logged to a text file, and the rolling average loss can be plotted.
 
         Notes:
-            01/04/2023: temporarily supports only one-player, dense reward setting from the perspective of white.
+            01/21/2023: supports only one-player, dense reward setting. It is undecided whether this is temporary.
 
         Typical usage example:
         ```python
@@ -114,6 +114,7 @@ class DecisionTransformerREINFORCETrainer:
             state_dim=self.cfg.state_dim,
             act_dim=self.cfg.act_dim,
             gameplay_depth=self.cfg.stockfish_gameplay_depth,
+            which_player=self.cfg.which_player,
             engine=self.engine,
             stockfish_metric=self.cfg.stockfish_metric,
             stockfish_eval_depth=self.cfg.stockfish_eval_depth,
@@ -186,7 +187,19 @@ class DecisionTransformerREINFORCETrainer:
         unused_action = torch.nn.functional.one_hot(
             torch.tensor([1]), num_classes=self.cfg.act_dim
         ).float()  # dtype = float32 & shape = (1,self.cfg.act_dim)
-        starting_return_to_go = torch.ones((1, 1), dtype=torch.float32)  # dtype = float32 & shape = (1,1)
+        if _data["params", "us_them"][0]:
+            starting_return_to_go = torch.ones((1, 1), dtype=torch.float32)  # dtype = float32 & shape = (1,1)
+        else:
+            starting_return_to_go = torch.tensor(
+                [
+                    [
+                        1
+                        - self.cfg.stockfish_metric.eval_board(
+                            curr_env_state, player="black", evaluation_depth=self.cfg.stockfish_eval_depth
+                        )
+                    ]
+                ]
+            )
         action_distros = []
         for t in count():
             if t > 0:
@@ -327,6 +340,7 @@ class ChessEnv:
         state_dim: dimension of state space.
         act_dim: dimension of action space.
         gameplay_depth: depth to use for Stockfish gameplay.
+        which_player: the agent's perspective. choices: "white", "black", or "random".
         engine: Stockfish engine for gameplay.
         stockfish_metric: StockfishMetric object to use for Stockfish evaluations.
         stockfish_eval_depth: search depth to use for Stockfish evaluations.
@@ -348,6 +362,7 @@ class ChessEnv:
         state_dim=STATE_DIM,
         act_dim=ACT_DIM,
         gameplay_depth=2,
+        which_player="white",
         engine=None,
         stockfish_metric=None,
         stockfish_eval_depth=6,
@@ -363,49 +378,76 @@ class ChessEnv:
             state_dim: dimension of state space.
             act_dim: dimension of action space.
             gameplay_depth: depth to use for Stockfish gameplay.
+            which_player: the agent's perspective. choices: "white", "black", or "random".
             engine: Stockfish engine for gameplay.
             stockfish_metric: StockfishMetric object to use for Stockfish evaluations.
             stockfish_eval_depth: search depth to use for Stockfish evaluations.
+
+        Raises:
+            ValueError: an error occurs if which_player is not "white", "black", or "random".
         """
         self.device = device
         self.state_dim = state_dim
         self.act_dim = act_dim
         self.gameplay_depth = gameplay_depth
+        if which_player not in ["white", "black", "random"]:
+            raise ValueError("which_player must be 'white', 'black', or 'random'")
+        self.which_player = which_player
         self.engine = engine
         self.stockfish_metric = stockfish_metric
         self.stockfish_eval_depth = stockfish_eval_depth
 
-        if td_params is None:
-            td_params = ChessEnv.gen_params(
-                device=self.device, batch_size=batch_size, gameplay_depth=self.gameplay_depth
-            )
-
-        # super().__init__(device=device, batch_size=[])
-        self._make_spec(td_params)
         if seed is None:
             seed = torch.empty((), dtype=torch.int64).random_().item()
         self._set_seed(seed)
 
+        if td_params is None:
+            td_params = ChessEnv.gen_params(
+                device=self.device,
+                rng=self.rng,
+                batch_size=batch_size,
+                gameplay_depth=self.gameplay_depth,
+                which_player=self.which_player,
+            )
+
+        self._make_spec(td_params)
+
     @staticmethod
-    def gen_params(device: str, batch_size=None, gameplay_depth=2) -> TensorDict:
+    def gen_params(
+        device: str,
+        rng: torch.Generator,
+        batch_size=None,
+        gameplay_depth=2,
+        which_player="white",
+    ) -> TensorDict:
         """
         Generates the hyperparameters for the environment.
 
         Args:
             device: device on which training is being conducted.
+            rng: random number generator.
             batch_size: batch size to use for training.
             gameplay_depth: depth to use for Stockfish gameplay.
+            which_player: choices: "white", "black", or "random".
 
         Returns:
             A tensordict containing the hyperparameters for the environment.
         """
         if batch_size is None:
             batch_size = []
+        if which_player == "white":
+            us = True
+        elif which_player == "black":
+            us = False
+        else:
+            us = bool(torch.randint(2, (1,), generator=rng).item())
+        them = not us
         td = TensorDict(
             {
                 "params": TensorDict(
                     {
-                        "env_gameplay_depth": torch.tensor([gameplay_depth], dtype=torch.int64),
+                        "env_gameplay_depth": torch.tensor([gameplay_depth], dtype=torch.int16),
+                        "us_them": torch.tensor([us, them], dtype=torch.bool),
                     },
                     [],
                 )
@@ -490,19 +532,27 @@ class ChessEnv:
         Returns:
             A tensordict of the starting chess board that is ready to be modified in a rollout and the starting
             chess board object.
-
-        Raises:
-            RuntimeError: an error occurs if the state dimension is not the Leela state dimension.
         """
-        if tensordict is None or tensordict.is_empty():
-            # if no tensordict is passed, we generate a single set of hyperparameters
-            # Otherwise, we assume that the input tensordict contains all the relevant
-            # parameters to get started.
-            tensordict = self.gen_params(device=self.device, batch_size=batch_size)
-        if self.state_dim == STATE_DIM:
-            board = leela_encodings.board_to_tensor(chess.Board(), us_them=(True, False))
+        tensordict = self.gen_params(
+            device=self.device,
+            rng=self.rng,
+            batch_size=batch_size,
+            gameplay_depth=self.gameplay_depth,
+            which_player=self.which_player,
+        )
+
+        if tensordict["params", "us_them"][0]:
+            chess_obj_board = chess.Board()
+            board = leela_encodings.board_to_tensor(chess_obj_board, us_them=(chess.WHITE, chess.BLACK))
         else:
-            raise RuntimeError(f"state_dim must be {STATE_DIM}")
+            chess_obj_board = chess.Board()
+            white_move = self.engine.play(
+                chess_obj_board, chess.engine.Limit(depth=tensordict["params", "env_gameplay_depth"])
+            ).move
+            chess_obj_board.push(white_move)
+            board = leela_encodings.board_to_tensor(
+                chess_obj_board, us_them=(chess.BLACK, chess.WHITE)
+            )  # board should come out flipped
 
         return (
             TensorDict(
@@ -514,7 +564,7 @@ class ChessEnv:
                 batch_size=tensordict.shape,
                 device=self.device,
             ),
-            chess.Board(),
+            chess_obj_board,
         )
 
     def step(self, tensordict: TensorDict, curr_env_state: chess.Board) -> Tuple[TensorDict, chess.Board]:
@@ -540,13 +590,14 @@ class ChessEnv:
             tensordict["action"],
         )  # dtype = float32 & shape = (self.cfg.state_dim,), (self.cfg.act_dim,)
         env_gameplay_depth = tensordict["params", "env_gameplay_depth"]
+        us_them = tensordict["params", "us_them"]
+        us = chess.WHITE if us_them[0] else chess.BLACK
+        them = not us
 
-        proposed_move = leela_encodings.decode_move(
-            torch.argmax(move).item(), us_them=(True, False), board=curr_env_state
-        )
+        proposed_move = leela_encodings.decode_move(torch.argmax(move).item(), us_them=(us, them), board=curr_env_state)
         # from square is not occupied by a white piece: should be punished severely
         proposed_from_piece = curr_env_state.piece_at(proposed_move.from_square)
-        if proposed_from_piece is None or proposed_from_piece.color != chess.WHITE:
+        if proposed_from_piece is None or proposed_from_piece.color != us:
             next_board_tensor = board_tensor
             reward_tensor = torch.tensor([10], dtype=torch.float32)
             done = torch.tensor([1], dtype=torch.bool)
@@ -565,12 +616,14 @@ class ChessEnv:
                 done = torch.tensor([0], dtype=torch.bool)
                 next_move = self.engine.play(curr_env_state, chess.engine.Limit(depth=env_gameplay_depth)).move
                 curr_env_state.push(next_move)
-            next_board_tensor = leela_encodings.board_to_tensor(board=curr_env_state.copy(), us_them=(True, False))
+            next_board_tensor = leela_encodings.board_to_tensor(board=curr_env_state.copy(), us_them=(us, them))
             reward_tensor = torch.tensor(
                 [
                     1
                     - self.stockfish_metric.eval_board(
-                        curr_env_state, player="white", evaluation_depth=self.stockfish_eval_depth
+                        curr_env_state,
+                        player="white" if us == chess.WHITE else "black",
+                        evaluation_depth=self.stockfish_eval_depth,
                     )
                 ]
             )

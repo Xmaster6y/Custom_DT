@@ -17,6 +17,7 @@ Arguments:
     --eval-steps-ratio: the ratio of steps between each evaluation.
     --lr: the learning rate.
     --one-player: if True, the training examples are generated from one player's perspective.
+    --which-player: the perspective of the agent in one player mode.
     --use-stockfish-eval: if True, the training examples are augmented with Stockfish evaluation shaping rewards.
     --stockfish-eval-depth: the depth of the Stockfish evaluation.
     --stockfish-gameplay-depth: the depth of the Stockfish evaluation during gameplay.
@@ -64,6 +65,7 @@ parser.add_argument("--logging-steps-ratio", type=float, default=0.01)
 parser.add_argument("--eval-steps-ratio", type=float, default=0.1)
 parser.add_argument("--lr", type=float, default=1e-4)
 parser.add_argument("--one-player", action=argparse.BooleanOptionalAction, default=True)
+parser.add_argument("--which-player", type=str, default="white")
 parser.add_argument("--use-stockfish-eval", action=argparse.BooleanOptionalAction, default=True)
 parser.add_argument("--stockfish-eval-depth", type=int, default=6)
 parser.add_argument("--stockfish-gameplay-depth", type=int, default=2)
@@ -123,7 +125,8 @@ try:  # To be sure to close stockfish engine if an error occurs
         seed=args.seed,
         lr=args.lr,
         one_player=args.one_player,
-        use_stock_fish_eval=args.use_stockfish_eval,
+        which_player=args.which_player,
+        use_stockfish_eval=args.use_stockfish_eval,
         stockfish_metric=stockfish_metric if args.use_stockfish_eval else None,
         stockfish_eval_depth=args.stockfish_eval_depth,
         stockfish_gameplay_depth=args.stockfish_gameplay_depth,
