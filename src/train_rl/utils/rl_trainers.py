@@ -147,7 +147,7 @@ class DecisionTransformerREINFORCETrainer:
         for i in pbar:
             rollout, distros = self.one_game_rollout()
             loss = [
-                -distro.log_prob(action.argmax()) * traj_return
+                -distro.log_prob(action.argmax()) * (1 / traj_return)
                 for distro, action, traj_return in zip(distros, rollout["action"], rollout["next"]["reward"])
             ]
             (sum(loss) / len(loss)).backward()
