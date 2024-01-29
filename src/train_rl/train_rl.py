@@ -35,7 +35,7 @@ Note:
 Typical usage example:
 
 ```bash
->>> python -m src.train_rl.train_rl --training --debug --seed 4 --n-epochs 1000 --lr 1e-4 --output-root %cd%
+>>> python -m src.train_rl.train_rl --training --debug --seed 4 --n-epochs 1000 --lr 1e-4 --output-root $PWD
 ...    --resume-from-checkpoint --checkpoint-path "weights/debug_checkpt_e899.pt"
 >>> tensorboard --logdir logging
 >>> # don't forget to clean up the logging and weights directories after training!
@@ -92,11 +92,11 @@ if args.name is None:
 else:
     NAME = args.name
 if args.debug:
-    OUTPUT_DIR = f"{args.output_root}\\weights\\debug"
-    LOGGING_DIR = f"{args.output_root}\\logging\\debug"
+    OUTPUT_DIR = f"{args.output_root}/weights/debug"
+    LOGGING_DIR = f"{args.output_root}/logging/debug"
 else:
-    OUTPUT_DIR = f"{args.output_root}\\weights\\{NAME}"
-    LOGGING_DIR = f"{args.output_root}\\logging\\{NAME}"
+    OUTPUT_DIR = f"{args.output_root}/weights/{NAME}"
+    LOGGING_DIR = f"{args.output_root}/logging/{NAME}"
 
 
 if args.use_stockfish_eval:

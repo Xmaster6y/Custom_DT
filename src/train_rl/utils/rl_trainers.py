@@ -275,7 +275,7 @@ class DecisionTransformerREINFORCETrainer:
                 "model_state_dict": model_state_dict,
                 "optim_state_dict": optim_state_dict,
             },
-            f"{self.cfg.output_dir}_checkpt_e{epoch}.pt",
+            f"{self.cfg.output_dir}/checkpt_e{epoch}.pt",
         )
 
 
