@@ -31,7 +31,8 @@ Arguments:
 Typical usage example:
 
 ```bash
->>> python src.train.leela.py --debug True --window-size 10
+>>> python -m src.train.leela --no-debug --training --window-size 10 --seed 42 --layers 6
+... --heads 4 --name None --no-overwrite
 ```
 """
 
@@ -47,27 +48,32 @@ from src.utils.dataset import LeelaChessDataset
 from src.utils.leela_constants import ACT_DIM, STATE_DIM
 from src.utils.trainer import DecisionTransformerTrainer, compute_metrics
 
+torch.backends.cuda.matmul.allow_tf32 = True
+torch.backends.cudnn.allow_tf32 = True
+
 parser = argparse.ArgumentParser("leela")
 # Meta
 parser.add_argument("--debug", action=argparse.BooleanOptionalAction, default=True)
 parser.add_argument("--training", action=argparse.BooleanOptionalAction, default=False)
 # Config
-parser.add_argument("--window-size", type=int, default=10)
+parser.add_argument("--window-size", type=int, default=42)
 parser.add_argument("--seed", type=int, default=42)
-parser.add_argument("--layers", type=int, default=6)
-parser.add_argument("--heads", type=int, default=4)
+parser.add_argument("--layers", type=int, default=8)
+parser.add_argument("--heads", type=int, default=8)
+# configure sequence padding so that args.window_size * number of players + sequence_padding is a power of 2
+parser.add_argument("--sequence-padding", type=int, default=0)
 # Training
 parser.add_argument("--name", type=str, default=None)
 parser.add_argument("--overwrite", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--n-epochs", type=int, default=1)
 parser.add_argument("--logging-steps-ratio", type=float, default=0.01)
 parser.add_argument("--eval-steps-ratio", type=float, default=0.1)
-parser.add_argument("--train-batch-size", type=int, default=50)
+parser.add_argument("--train-batch-size", type=int, default=5)
 parser.add_argument("--gradient-accumulation-steps", type=int, default=1)
-parser.add_argument("--eval-batch-size", type=int, default=500)
+parser.add_argument("--eval-batch-size", type=int, default=5)
 parser.add_argument("--lr", type=float, default=1e-5)
 parser.add_argument("--one-player", action=argparse.BooleanOptionalAction, default=True)
-parser.add_argument("--use-stockfish-eval", action=argparse.BooleanOptionalAction, default=False)
+parser.add_argument("--use-stockfish-eval", action=argparse.BooleanOptionalAction, default=True)
 parser.add_argument("--stockfish-eval-depth", type=int, default=6)
 parser.add_argument("--resume-from-checkpoint", action=argparse.BooleanOptionalAction, default=False)
 parser.add_argument("--checkpoint-path", type=str, default=None)
@@ -92,7 +98,6 @@ else:
     OUTPUT_DIR = f"{args.output_root}weights/{NAME}"
     LOGGING_DIR = f"{args.output_root}logging/{NAME}"
 
-
 if args.use_stockfish_eval:
     stockfish_metric = StockfishMetric()
 
@@ -103,12 +108,13 @@ if args.use_stockfish_eval:
 
 else:
     position_evaluator = None
+    stockfish_metric = None
 
 try:  # To be sure to close stockfish engine if an error occurs
     eval_generator = torch.Generator()
     eval_generator.manual_seed(args.seed)
     eval_dataset = LeelaChessDataset(
-        file_name="data/chess_games_base/test_stockfish_5000.jsonl",
+        file_name="data/chess_games_base/test_stockfish_50.jsonl",
         position_evaluator=position_evaluator,
         window_size=args.window_size,
         generator=eval_generator,
@@ -122,7 +128,7 @@ try:  # To be sure to close stockfish engine if an error occurs
     if args.debug:
         train_dataset_file = "data/chess_games_base/test_stockfish_5000.jsonl"
     else:
-        train_dataset_file = "data/chess_games_base/train_stockfish_262k.jsonl"
+        train_dataset_file = "data/chess_games_base/test_stockfish_5000.jsonl"
     train_dataset = LeelaChessDataset(
         file_name=train_dataset_file,
         position_evaluator=position_evaluator,
@@ -136,9 +142,11 @@ try:  # To be sure to close stockfish engine if an error occurs
     conf = DecisionTransformerConfig(
         state_dim=STATE_DIM,
         act_dim=ACT_DIM,
+        max_ep_len=1024,
         n_layers=args.layers,
         n_heads=args.heads,
         hidden_size=64 * args.heads,
+        sequence_padding=args.sequence_padding,
     )
     model = DecisionTransformerModel(conf)
     model.to(DEVICE)  # Not necessary
@@ -159,8 +167,12 @@ try:  # To be sure to close stockfish engine if an error occurs
         num_train_epochs=args.n_epochs,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         run_name="latest",
-        fp16=True,
+        fp16=False if DEVICE == torch.device("cpu") else True,
     )
+    #     tf32=True,
+    #     dataloader_num_workers=4,
+    #     ddp_backend="mpi"
+    # )
 
     trainer = DecisionTransformerTrainer(
         model=model,
@@ -168,6 +180,7 @@ try:  # To be sure to close stockfish engine if an error occurs
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         compute_metrics=compute_metrics,
+        pad_token_id=0,
     )
 
     if args.training:

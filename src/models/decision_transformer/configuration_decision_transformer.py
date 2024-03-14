@@ -83,6 +83,9 @@ class DecisionTransformerConfig(PretrainedConfig):
         reorder_and_upcast_attn (`bool`, *optional*, defaults to `False`):
             Whether to scale keys (K) prior to computing attention (dot-product) and upcast attention
             dot-product/softmax to float() when training with mixed precision.
+        sequence_padding (`int`, *optional*, defaults to `0`):
+            The number of padding tokens to add to the end of the sequence. Often this is used to bring a
+            sequence length up to a multiple of a power of 2 in order to enable more efficient training.
 
     Example:
 
@@ -131,6 +134,7 @@ class DecisionTransformerConfig(PretrainedConfig):
         eos_token_id=50256,
         scale_attn_by_inverse_layer_idx=False,
         reorder_and_upcast_attn=False,
+        sequence_padding=0,
         **kwargs,
     ):
         self.state_dim = state_dim
@@ -153,6 +157,7 @@ class DecisionTransformerConfig(PretrainedConfig):
         self.use_cache = use_cache
         self.scale_attn_by_inverse_layer_idx = scale_attn_by_inverse_layer_idx
         self.reorder_and_upcast_attn = reorder_and_upcast_attn
+        self.sequence_padding = sequence_padding
 
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id

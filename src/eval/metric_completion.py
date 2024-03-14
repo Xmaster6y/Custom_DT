@@ -95,6 +95,7 @@ class StockfishEvalTest:
             print(f"Shaping rewards: {self.shaping_rewards}, One player: {self.one_player}")
             print(game)
             print("-" * 40)
+        self.stockfish_metric.engine.quit()
 
         with torch.no_grad():
             _, _, _ = self.model(
@@ -104,9 +105,6 @@ class StockfishEvalTest:
                 timesteps=game["timesteps"],
                 return_dict=False,
             )
-
-    def __del__(self):
-        del self.stockfish_metric
 
 
 if __name__ == "__main__":
@@ -135,4 +133,3 @@ if __name__ == "__main__":
             device=DEVICE,
         )
         CT.run_test()
-        del CT

@@ -244,6 +244,7 @@ class LeelaChessDataset(Dataset):
         eval_mode: Whether to return the labels.
         position_evaluator: Function that evaluates a chess.Board position.
         one_player: Whether to encode the data using only one player's moves.
+        pad_token_id: Value to use for padding.
     """
 
     def __init__(
@@ -254,6 +255,7 @@ class LeelaChessDataset(Dataset):
         eval_mode: bool = False,
         position_evaluator: Optional[Callable[[chess.Board], float]] = None,
         one_player: bool = False,
+        pad_token_id: int = 0,
     ):
         """
         Initializes a LeelaChessDataset object.
@@ -265,6 +267,7 @@ class LeelaChessDataset(Dataset):
             eval_mode: Whether to return the labels.
             position_evaluator: Function that evaluates a chess.Board position.
             one_player: Whether to encode the data using only one player's moves.
+            pad_token_id: Value to use for padding.
         """
         self.games = []  # Can be heavy on memory, but good enough for now
         with jsonlines.open(file_name) as reader:
@@ -275,6 +278,7 @@ class LeelaChessDataset(Dataset):
         self.eval_mode = eval_mode
         self.position_evaluator = position_evaluator
         self.one_player = one_player
+        self.pad_token_id = pad_token_id
 
     def __len__(self):
         return len(self.games)
@@ -304,6 +308,7 @@ class LeelaChessDataset(Dataset):
             return_labels=self.eval_mode,
             one_player=self.one_player,
             shaping_rewards=self.position_evaluator is not None,
+            pad_token_id=self.pad_token_id,
         )
         for key in input_dict:
             if isinstance(input_dict[key], torch.Tensor):

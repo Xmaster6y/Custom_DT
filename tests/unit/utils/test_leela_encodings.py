@@ -107,8 +107,8 @@ class TestFormatting:
         move_indices = encoded_simple_seq["move_indices"]
         board_tensors = encoded_simple_seq["board_tensors"]
         assert len(move_indices[chess.WHITE]) == len(board_tensors[chess.BLACK]) == 6
-        assert move_indices[chess.WHITE][0] == 293
-        assert move_indices[chess.BLACK][0] == 322  # Flipped rows and columns
+        assert move_indices[chess.WHITE][0] == 294  # added padding token at start of action space
+        assert move_indices[chess.BLACK][0] == 323  # Flipped rows and columns
 
     def test_format_inputs_one_player(self, encoded_simple_seq):
         """

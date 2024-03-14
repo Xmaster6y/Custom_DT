@@ -131,7 +131,8 @@ def encode_move(
     us_them: Tuple[bool, bool],
 ) -> int:
     """
-    Converts a chess.Move object to an index in the 1858-dimensional action space.
+    Converts a chess.Move object to an index in the 1920-dimensional action space (1858 moves + padding token +
+    null tokens to reach space size divisible by a multiple of 128, which is preferable for training efficiency).
 
     Args:
         move: The chess.Move object to convert.
@@ -139,7 +140,7 @@ def encode_move(
             (True, False) would represent a game from the perspective of the white player and vice versa.
 
     Returns:
-        An integer index in the 1858-dimensional action space.
+        An integer index in the 1920-dimensional action space.
 
     Typical usage example:
     ```python
@@ -292,6 +293,7 @@ def format_tensors(
     window_start: int = 0,
     position_evaluations: list = None,
     shaping_rewards: bool = False,
+    pad_token_id: int = 0,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Formats chess game sequence data into tensors suitable for modeling with the Decision Transformer.
@@ -306,6 +308,7 @@ def format_tensors(
         window_start: The starting index of the sequence to model.
         position_evaluations: A list of Stockfish evaluations of the board positions.
         shaping_rewards: Whether to use Stockfish evaluation shaping rewards.
+        pad_token_id: The value to use for padding the tensors of chess games.
 
     Returns:
         A tuple of tensors for modeling with the Decision Transformer.
@@ -325,15 +328,16 @@ def format_tensors(
     attention_mask[:, : window_size - window_remainder] = 1.0
 
     action_seq = torch.nn.functional.one_hot(
-        torch.tensor(move_indices[window_start:window_end] + [0] * window_remainder, dtype=int), num_classes=ACT_DIM
+        torch.tensor(move_indices[window_start:window_end] + [pad_token_id] * window_remainder, dtype=int),
+        num_classes=ACT_DIM,
     )
     actions = action_seq.reshape(1, window_size, ACT_DIM).to(device=device, dtype=torch.float32)
 
     state_seq = torch.stack(board_tensors[window_start:window_end])
     states = state_seq.reshape(1, window_end - window_start, STATE_DIM).to(device=device, dtype=torch.float32)
-    states = torch.cat((states, torch.zeros((1, window_remainder, STATE_DIM), dtype=torch.float32)), dim=1)
+    states = torch.cat((states, torch.full((1, window_remainder, STATE_DIM), pad_token_id, dtype=torch.float32)), dim=1)
 
-    returns_to_go = torch.zeros(1, window_size, 1, device=device, dtype=torch.float32)
+    returns_to_go = torch.full((1, window_size, 1), pad_token_id, device=device, dtype=torch.float32)
     returns_to_go[:, : window_size - window_remainder, :] = torch.full(
         (1, window_size - window_remainder, 1), end_reward, device=device, dtype=torch.float32
     )
@@ -342,7 +346,7 @@ def format_tensors(
         if position_evaluations is None:
             raise ValueError("No move evaluations provided.")
         evaluations = torch.tensor(
-            [position_evaluations[window_start:window_end] + [0.0] * window_remainder],
+            [position_evaluations[window_start:window_end] + [pad_token_id] * window_remainder],
             device=device,
             dtype=torch.float32,
         ).unsqueeze(2)
@@ -359,6 +363,7 @@ def format_inputs(
     return_labels: bool = False,
     one_player: bool = True,
     shaping_rewards: bool = False,
+    pad_token_id: int = 0,
 ) -> Dict[str, torch.Tensor]:
     """
     Converts an encoded sequence dictionary to a dictionary of tensors suitable for modeling with the Decision
@@ -373,6 +378,7 @@ def format_inputs(
         return_labels: Whether to return the actions as labels.
         one_player: Whether to model one player or both players.
         shaping_rewards: Whether to use Stockfish evaluation shaping rewards.
+        pad_token_id: The value to use for padding the tensors of chess games.
 
     Returns:
         A dictionary of tensors for modeling with the Decision Transformer.
@@ -416,6 +422,7 @@ def format_inputs(
             window_start=window_start,
             position_evaluations=position_evaluations[color] if shaping_rewards else None,
             shaping_rewards=shaping_rewards,
+            pad_token_id=pad_token_id,
         )
         player_timesteps = player + torch.arange(
             start=2 * window_start, end=2 * window_start + 2 * window_size, step=2, device=device

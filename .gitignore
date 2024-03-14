@@ -132,5 +132,6 @@ dmypy.json
 ignored
 stockfish-source/
 apptainer
+aws*
 
 *secret*

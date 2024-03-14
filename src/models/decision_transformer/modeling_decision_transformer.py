@@ -849,6 +849,7 @@ class DecisionTransformerModel(DecisionTransformerPreTrainedModel):
             *([nn.Linear(config.hidden_size, config.act_dim)] + ([nn.Tanh()] if config.action_tanh else []))
         )
         self.predict_return = torch.nn.Linear(config.hidden_size, 1)
+        self.sequence_padding = config.sequence_padding
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -917,7 +918,7 @@ class DecisionTransformerModel(DecisionTransformerPreTrainedModel):
 
         if attention_mask is None:
             # attention mask for GPT: 1 if can be attended to, 0 if not
-            attention_mask = torch.ones((batch_size, seq_length), dtype=torch.long)
+            attention_mask = torch.ones((batch_size, seq_length + self.sequence_padding), dtype=torch.long)
 
         # embed each modality with a different head
         state_embeddings = self.embed_state(states)
@@ -940,7 +941,6 @@ class DecisionTransformerModel(DecisionTransformerPreTrainedModel):
             .permute(0, 2, 1, 3)
             .reshape(batch_size, 3 * seq_length, self.hidden_size)
         )
-        stacked_inputs = self.embed_ln(stacked_inputs)
 
         # to make the attention mask fit the stacked inputs, have to stack it as well
         stacked_attention_mask = (
@@ -948,6 +948,17 @@ class DecisionTransformerModel(DecisionTransformerPreTrainedModel):
             .permute(0, 2, 1)
             .reshape(batch_size, 3 * seq_length)
         )
+
+        if self.sequence_padding:
+            # sequence padding to reach sequence dimension that is power of 2: increases training efficiency
+            stacked_inputs = torch.cat(
+                (stacked_inputs, torch.zeros(batch_size, self.sequence_padding, self.hidden_size)), dim=1
+            )
+            stacked_inputs = self.embed_ln(stacked_inputs)
+            stacked_attention_mask = torch.cat(
+                (stacked_attention_mask, torch.zeros(batch_size, self.sequence_padding)), dim=1
+            )
+
         device = stacked_inputs.device
         # we feed in the input embeddings (not word indices as in NLP) to the model
         encoder_outputs = self.encoder(
@@ -962,8 +973,10 @@ class DecisionTransformerModel(DecisionTransformerPreTrainedModel):
 
         # reshape x so that the second dimension corresponds to the original
         # returns (0), states (1), or actions (2); i.e. x[:,1,t] is the token for s_t
-        x = x.reshape(batch_size, seq_length, 3, self.hidden_size).permute(0, 2, 1, 3)
+        if self.sequence_padding:
+            x = x[:, : -self.sequence_padding, :]
 
+        x = x.reshape(batch_size, seq_length, 3, self.hidden_size).permute(0, 2, 1, 3)
         # get predictions
         return_preds = self.predict_return(x[:, 2])  # predict next return given state and action
         state_preds = self.predict_state(x[:, 2])  # predict next state given state and action
